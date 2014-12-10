@@ -49,7 +49,7 @@
 #include "Vertex.h"
 #include "Edge.h"
 #include "Face.h"
-#include "SpareMatrix.h"
+#include "SparseMatrix.h"
 
 
 namespace DDG
@@ -83,13 +83,19 @@ namespace DDG
          void indexVertices( void );
          // assigns a unique id to each vertex of the mesh
 
+         void indexEdges( void );
+         // assigns a unique id to each edge of the mesh
+
+         void indexFaces( void );
+         // assigns a unique id to each face of the mesh
+
          void buildLaplacian( void );
          // fills in a sparse matrix representing the cotan-laplace operator
 
          void solveDivergenceFreePoission( void );
 
 
-         SpareMatrix< Real > laplacian;
+         SparseMatrix< Real > laplacian;
          // cotan-laplace
 
          std::vector<HalfEdge> halfedges;

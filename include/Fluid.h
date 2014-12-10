@@ -12,11 +12,12 @@
 #include "HalfEdge.h"
 #include "Vector.h"
 #include "Mesh.h"
+#include "DiscreteExteriorCalculus.h"
 
 namespace DDG
 {
 
-   class FLUID
+   class Fluid
    {
       public:
 
@@ -37,15 +38,15 @@ namespace DDG
             HARMONIC
          };
 
-         Fluid( Mesh*& surface_ptr );
+         Fluid( Mesh*& surface_ptr, const ProjectionComponent& projectType = DIV );
 
          ~Fluid( void );
 
-         static void flow( const float& dt,
-                           const AdvectionScheme& advectType,
-                           const ProjectionComponent& projectType,
-                           const Interpolation& interpType 
-                         );
+         // static void flow( const float& dt,
+         //                   const AdvectionScheme& advectType,
+         //                   const ProjectionComponent& projectType,
+         //                   const Interpolation& interpType 
+         //                 );
          // step fluid velocity and markers foward by dt with choice of advection, projection, and interpolation
 
       protected:
@@ -56,32 +57,43 @@ namespace DDG
          // // updates/forces the field according to user interaction        
 
       private:
+         
+         void buildOperators( );
+         
+         void advectMarkers( const float& dt );
 
-         static void advectMarkers( const float& dt ) = 0;
+         void advectSemiLagrangian( const float& dt );
 
-         static void advectSemiLagrangian( const float& dt );
+         void projectCurl( void );
 
-         static void projectCurl( void ) = 0;
+         void projectDivergence( void );
 
-         static void projectDivergence( void );
+         void projectHarmonic( void );
 
-         static void projectHarmonic( void ) = 0;
+         void updateEdgeWeights( void );
 
-         static double rayEdgeIntersectDistance( const Vector& coordinate, const Vector& direction, const HalfEdge& half_edge );
+         // Static helper functions:
+         static double rayLineIntersectDistance( const Vector& coordinate, const Vector& direction, const HalfEdgeIter& half_edge );
 
          static Vector rotateAcrossBy( const Vector& direction, const Vector& axis, const double& angle );
 
          static void BarycentricWeights( const Vector coordinate, const Vector v_i, const Vector v_j, const Vector v_k, float &a_i, float &a_j, float &a_k );
 
-         static void updateEdgeWeights( void );
+         static Vector whitneyInterpolate( const Vector& coordinate, const EdgeIter& edge );
 
-         static Vector whitneyInterpolate( const Vector& coordinate, const Edge& edge );
-
-         static Vector whitneyInterpolate( const Vector& coordinate, const HalfEdge& he );
+         static Vector whitneyInterpolate( const Vector& coordinate, const HalfEdgeIter& he );
 
          // viscosity/density/number of samples/other parameters?
 
          Mesh* fluid_ptr;
+
+         // Discrete Operators
+         SparseMatrix<Real> star0;
+         SparseMatrix<Real> star1;
+         SparseMatrix<Real> star2;
+         SparseMatrix<Real> d0;
+         SparseMatrix<Real> d1;
+
    };
 }
 

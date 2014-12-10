@@ -34,7 +34,7 @@ LIBS = $(DDG_OPENGL_LIBS) $(DDG_SUITESPARSE_LIBS) $(DDG_BLAS_LIBS)
 
 ## !! Do not edit below this line -- dependencies can be updated by running ./update ##################
 
-OBJS = obj/Camera.o obj/Complex.o obj/DenseMatrix.o obj/Edge.o obj/Face.o obj/HalfEdge.o obj/Image.o obj/LinearContext.o obj/LinearEquation.o obj/LinearPolynomial.o obj/LinearSystem.o obj/Mesh.o obj/MeshIO.o obj/Quaternion.o obj/Real.o obj/Shader.o obj/SparseMatrix.o obj/Variable.o obj/Vector.o obj/Vertex.o obj/Viewer.o obj/main.o
+OBJS = obj/Camera.o obj/Complex.o obj/DenseMatrix.o obj/Edge.o obj/Face.o obj/Fluid.o obj/HalfEdge.o obj/Image.o obj/LinearContext.o obj/LinearEquation.o obj/LinearPolynomial.o obj/LinearSystem.o obj/Mesh.o obj/MeshIO.o obj/Quaternion.o obj/Real.o obj/Shader.o obj/SparseMatrix.o obj/Variable.o obj/Vector.o obj/Vertex.o obj/Viewer.o obj/main.o
 
 all: $(TARGET)
 
@@ -50,16 +50,16 @@ obj/Complex.o: src/Complex.cpp include/Complex.h
 obj/DenseMatrix.o: src/DenseMatrix.cpp include/DenseMatrix.h include/Types.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Vector.h include/Complex.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Utility.h 
 	$(CC) $(CFLAGS) -c src/DenseMatrix.cpp -o obj/DenseMatrix.o
 
-obj/Edge.o: src/Edge.cpp include/Edge.h include/Types.h include/Mesh.h include/HalfEdge.h include/Vector.h include/Vertex.h include/Face.h 
+obj/Edge.o: src/Edge.cpp include/Edge.h include/Types.h include/Mesh.h include/HalfEdge.h include/Vector.h include/Vertex.h include/Face.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Complex.h include/DenseMatrix.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Utility.h 
 	$(CC) $(CFLAGS) -c src/Edge.cpp -o obj/Edge.o
 
-obj/Face.o: src/Face.cpp include/Face.h include/Types.h include/Mesh.h include/HalfEdge.h include/Vector.h include/Vertex.h include/Edge.h 
+obj/Face.o: src/Face.cpp include/Face.h include/Types.h include/Mesh.h include/HalfEdge.h include/Vector.h include/Vertex.h include/Edge.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Complex.h include/DenseMatrix.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Utility.h 
 	$(CC) $(CFLAGS) -c src/Face.cpp -o obj/Face.o
 
-obj/Fluid.o: src/Fluid.cpp include/Fluid.h include/Types.h include/Mesh.h include/HalfEdge.h include/Vector.h include/Vertex.h include/Edge.h 
+obj/Fluid.o: src/Fluid.cpp include/Fluid.h include/Face.h include/Types.h include/HalfEdge.h include/Vector.h include/Mesh.h include/Vertex.h include/Edge.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Complex.h include/DenseMatrix.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Utility.h include/DiscreteExteriorCalculus.h src/DiscreteExteriorCalculus.inl 
 	$(CC) $(CFLAGS) -c src/Fluid.cpp -o obj/Fluid.o
-	
-obj/HalfEdge.o: src/HalfEdge.cpp include/HalfEdge.h include/Vector.h include/Types.h include/Mesh.h include/Vertex.h include/Edge.h include/Face.h 
+
+obj/HalfEdge.o: src/HalfEdge.cpp include/HalfEdge.h include/Vector.h include/Types.h include/Mesh.h include/Vertex.h include/Edge.h include/Face.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Complex.h include/DenseMatrix.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Utility.h 
 	$(CC) $(CFLAGS) -c src/HalfEdge.cpp -o obj/HalfEdge.o
 
 obj/Image.o: src/Image.cpp include/Image.h 
@@ -77,10 +77,10 @@ obj/LinearPolynomial.o: src/LinearPolynomial.cpp include/LinearPolynomial.h incl
 obj/LinearSystem.o: src/LinearSystem.cpp include/LinearSystem.h include/LinearEquation.h include/LinearPolynomial.h include/Variable.h include/SparseMatrix.h include/Types.h src/SparseMatrix.inl include/Real.h include/Complex.h include/DenseMatrix.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Vector.h include/Utility.h 
 	$(CC) $(CFLAGS) -c src/LinearSystem.cpp -o obj/LinearSystem.o
 
-obj/Mesh.o: src/Mesh.cpp include/Mesh.h include/HalfEdge.h include/Vector.h include/Types.h include/Vertex.h include/Edge.h include/Face.h include/MeshIO.h 
+obj/Mesh.o: src/Mesh.cpp include/Mesh.h include/HalfEdge.h include/Vector.h include/Types.h include/Vertex.h include/Edge.h include/Face.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Complex.h include/DenseMatrix.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Utility.h include/MeshIO.h 
 	$(CC) $(CFLAGS) -c src/Mesh.cpp -o obj/Mesh.o
 
-obj/MeshIO.o: src/MeshIO.cpp include/MeshIO.h include/Mesh.h include/HalfEdge.h include/Vector.h include/Types.h include/Vertex.h include/Edge.h include/Face.h 
+obj/MeshIO.o: src/MeshIO.cpp include/MeshIO.h include/Mesh.h include/HalfEdge.h include/Vector.h include/Types.h include/Vertex.h include/Edge.h include/Face.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Complex.h include/DenseMatrix.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Utility.h 
 	$(CC) $(CFLAGS) -c src/MeshIO.cpp -o obj/MeshIO.o
 
 obj/Quaternion.o: src/Quaternion.cpp include/Quaternion.h include/Vector.h include/Complex.h 
@@ -101,13 +101,13 @@ obj/Variable.o: src/Variable.cpp include/Variable.h
 obj/Vector.o: src/Vector.cpp include/Vector.h 
 	$(CC) $(CFLAGS) -c src/Vector.cpp -o obj/Vector.o
 
-obj/Vertex.o: src/Vertex.cpp include/Vertex.h include/Vector.h include/Types.h include/Mesh.h include/HalfEdge.h include/Edge.h include/Face.h 
+obj/Vertex.o: src/Vertex.cpp include/Vertex.h include/Vector.h include/Types.h include/Mesh.h include/HalfEdge.h include/Edge.h include/Face.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Complex.h include/DenseMatrix.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Utility.h 
 	$(CC) $(CFLAGS) -c src/Vertex.cpp -o obj/Vertex.o
 
-obj/Viewer.o: src/Viewer.cpp include/Viewer.h include/Mesh.h include/HalfEdge.h include/Vector.h include/Types.h include/Vertex.h include/Edge.h include/Face.h include/Camera.h include/Quaternion.h include/Complex.h include/Shader.h include/Image.h 
+obj/Viewer.o: src/Viewer.cpp include/Viewer.h include/Mesh.h include/HalfEdge.h include/Vector.h include/Types.h include/Vertex.h include/Edge.h include/Face.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Complex.h include/DenseMatrix.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Utility.h include/Camera.h include/Shader.h include/Image.h include/Fluid.h include/DiscreteExteriorCalculus.h src/DiscreteExteriorCalculus.inl 
 	$(CC) $(CFLAGS) -c src/Viewer.cpp -o obj/Viewer.o
 
-obj/main.o: src/main.cpp include/Viewer.h include/Mesh.h include/HalfEdge.h include/Vector.h include/Types.h include/Vertex.h include/Edge.h include/Face.h include/Camera.h include/Quaternion.h include/Complex.h include/Shader.h include/DenseMatrix.h src/DenseMatrix.inl include/LinearContext.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Utility.h 
+obj/main.o: src/main.cpp include/Viewer.h include/Mesh.h include/HalfEdge.h include/Vector.h include/Types.h include/Vertex.h include/Edge.h include/Face.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Complex.h include/DenseMatrix.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Utility.h include/Camera.h include/Shader.h 
 	$(CC) $(CFLAGS) -c src/main.cpp -o obj/main.o
 
 

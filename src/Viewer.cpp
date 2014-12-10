@@ -9,6 +9,7 @@ using namespace std;
 
 #include "Viewer.h"
 #include "Image.h"
+#include "Fluid.h"
 
 namespace DDG
 {
@@ -19,9 +20,11 @@ namespace DDG
    int Viewer::windowSize[2] = { 512, 512 };
    Camera Viewer::camera;
    Shader Viewer::shader;
+   Fluid fluid;
    
    void Viewer :: init( void )
    {
+      fluid = Fluid( &mesh, Fluid::ProjectionComponent::DIV );
       restoreViewerState();
       initGLUT();
       initGL();
@@ -129,6 +132,52 @@ namespace DDG
    void Viewer :: mProcess( void )
    {
       // TODO process geometry here!
+
+      if( fluid == NULL ){
+         std::cerr << "[Viewer::mProcess] Fluid not initialized" << std::endl;
+         exit( EXIT_FAILURE );
+      }
+
+      const float dt = 0.01;
+      const AdvectionScheme advectType = Fluid::AdvectionScheme::SEMI_LAGRANGIAN;
+      const ProjectionComponent projectType = Fluid::ProjectionComponent::DIV;
+
+      {
+         assert( dt > 0. );
+
+         //TODO: check for interaction/input/Forces
+
+         //advect velocity field
+         if( advectType == SEMI_LAGRANGIAN )
+         {
+            fluid.advectSemiLagrangian( dt );
+         }
+         else{
+            std::cerr << "Advection Scheme not implemeted, exiting" << std::endl;
+            return;
+         }
+         fluid.updateEdgeWeights( );
+
+         //project pressure under some criteria:
+         if( projectType == CURL ){
+            fluid.projectCurl( );
+         }
+         else if( projectType == DIV ){
+            fluid.projectDivergence( );
+         }
+         else if ( projectType == HARMONIC ){
+            fluid.projectHarmonic( );
+         }
+         else{
+            std::cerr << "Projection Component not implemented, exiting" << std::endl;
+            return;
+         }
+         fluid.updateEdgeWeights( );
+
+         //advectMarker along the flow... update visualization (here? or in view?)
+
+         fluid.advectMarkers( dt );
+      }
 
       updateDisplayList();
    }
@@ -326,7 +375,7 @@ namespace DDG
 
    void Viewer :: drawPolygons( void )
    {
-      glColor3f( 1., .4, 0. );
+      glColor3f( 1., .4, 0.5 );
 
       for( FaceCIter f  = mesh.faces.begin();
                      f != mesh.faces.end();

@@ -18,12 +18,6 @@ namespace DDG
    class Vertex
    {
       public:
-         HalfEdgeIter he;
-         // points to the "outgoing" halfedge
-
-         Vector position;
-         // location of vertex in Euclidean 3-space
-
          Vector normal( void ) const;
          // returns the vertex normal
 
@@ -33,18 +27,27 @@ namespace DDG
          int valence( void ) const;
          // returns the number of incident faces / edges
 
-         void setID( const int& new_id );
+         void setID( const int& new_id ) { index = new_id; };
          // assigns a new ID to the vertex
+
+         int getID( void ) const { return index; }
 
          double dualArea( void ) const;
          // one third the are of incident faces, area of dual polygon surrounding vertex
 
-         int v_id = -1;
-         // unique ID with reference to a mesh in range 0, ... , NumVertices - 1
+         HalfEdgeIter he;
+         // points to the "outgoing" halfedge
+
+         Vector position;
+         // location of vertex in Euclidean 3-space
 
       private:
-         double rho;
-         // pressure scalar associated with the fluid at this position in space
+         int index;// = -1;
+         // unique ID with reference to a mesh in range 0, ... , NumVertices - 1
+
+         // double rho;
+         // Marker value associated with the fluid at this position in space
+         // Could represent color, density, temperature, or any other scalar.
 
    };
 }

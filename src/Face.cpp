@@ -26,5 +26,6 @@ namespace DDG
 
       return 0.5 * e1.norm() * e2.norm() * sin( theta );
    }
+
 }
 

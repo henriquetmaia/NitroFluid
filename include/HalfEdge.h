@@ -18,7 +18,7 @@ namespace DDG
    {
       public:
 
-         double cotan();
+         double cotan() const;
          // the cotangent of the angle across from this halfedge
 
          HalfEdgeIter next;

@@ -47,11 +47,6 @@ namespace DDG
       return n;
    }
 
-   void Vertex::setID( const int& new_id )
-   {
-      v_id = new_id;
-   }
-
    double Vertex::dualArea( void ) const
    {
       double incidentAreaSum = 0;

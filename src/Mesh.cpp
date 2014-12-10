@@ -71,6 +71,9 @@ namespace DDG
       if( !( rval = MeshIO::read( in, *this )))
       {
          normalize();
+         indexVertices();
+         indexEdges();
+         indexFaces();
       }
       return rval;
    }
@@ -127,13 +130,35 @@ namespace DDG
 
    void Mesh::indexVertices( void )
    {
-      int count = 0;
-      for( VertexCIter v = vertices.begin(); v != vertices.end(); v++ )
+      unsigned count = 0;
+      for( VertexIter v = vertices.begin(); v != vertices.end(); ++v )
       {
          v->setID( count );
          ++count;
       }
       assert( count == vertices.size() );
+   }
+
+   void Mesh::indexEdges( void )
+   {
+      unsigned count = 0;
+      for( EdgeIter e = edges.begin(); e != edges.end(); ++e )
+      {
+         e->setID( count );
+         ++count;
+      }
+      assert( count == edges.size() );
+   }
+
+   void Mesh::indexFaces( void )
+   {
+      unsigned count = 0;
+      for( FaceIter f = faces.begin(); f != faces.end(); ++f )
+      {
+         f->setID( count );
+         ++count;
+      }
+      assert( count == faces.size() );
    }
 
    void Mesh::buildLaplacian( )
@@ -142,12 +167,12 @@ namespace DDG
 
       for( VertexCIter v = vertices.begin(); v != vertices.end(); v++ )
       {
-         int u_id = v->v_id;
+         int u_id = v->index;
          HalfEdgeCIter h = v->he;
          do
          {
             double weight = 0.5 * ( h->cotan() + h->flip->cotan() );
-            int j_id = h->next->vertex->v_id;
+            int j_id = h->next->vertex->index;
             laplacian( u_id, j_id ) -= weight;
             laplacian( u_id, u_id ) += weight;
             h = h->flip->next;
@@ -156,10 +181,10 @@ namespace DDG
       }   
    }
 
-   void Mesh::solveScalarPoissonProblem( void )
-   {
+   // void Mesh::solveScalarPoissonProblem( void )
+   // {
 
-   }
+   // }
 
 }
 

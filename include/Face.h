@@ -17,9 +17,7 @@ namespace DDG
    class Face
    {
       public:
-         HalfEdgeIter he;
-         // points to one of the halfedges associated with this face
-
+         
          bool isBoundary( void ) const;
          // returns true if this face corresponds to a
          // boundary loop; false otherwise
@@ -30,6 +28,17 @@ namespace DDG
 
          double area( void ) const;
          // area of this face
+
+         void setID( const int& new_id ) { index = new_id; };
+         // assigns a new ID to the face
+
+         int getID( void ) const { return index; }
+
+         HalfEdgeIter he;
+         // points to one of the halfedges associated with this face
+
+      private:
+         int index;// = -1; 
    };
 }
 
