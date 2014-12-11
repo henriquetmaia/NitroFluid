@@ -184,7 +184,7 @@ namespace DDG
     divU = ( d0.transpose() ) * star1 * u;
 
     DenseMatrix<Real> p( V, 1 );
-    backsolvePositiveDefinite( L, x, y ); // ???, where to p and divU get used?
+    backsolvePositiveDefinite( L, p, divU );
 
     DenseMatrix<Real> gradP( E, 1 );
     gradP = d0 * p;
@@ -205,8 +205,21 @@ namespace DDG
   // ray should never negatively intersect with halfEdge
   // since rays are emitted internally to a triangle from the border
   {
-    // Should assert not to be negative, else it will always be the smallest on error
-    return 1e10; // Error should return large, not small distance, if anything
+    Vector e1 = half_edge->flip->vertex - half_edge->vertex;
+    Vector v1 = half_edge->vertex - direction;
+    double t1 = cross( v1, e1 ) / cross( direction, e1 ); 
+
+    Vector e2 = half_edge->next->flip->vertex - half_edge->next->vertex;
+    Vector v2 = half_edge->next->vertex - direction;
+    double t2 = cross( v2, e2 ) / cross( direction, e2 );
+
+    if ( t1 < t2 ) {
+	coordinate = coordinate + direction * t1;
+	return t1;
+    } 
+	
+    coordinate = coordinate + direction * t2; 
+    return t2;
   }
 
   void Fluid :: updateEdgeWeights( )
