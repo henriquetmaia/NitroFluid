@@ -73,7 +73,7 @@ namespace DDG
          void updateEdgeWeights( void );
 
          // Static helper functions:
-         static double rayLineIntersectDistance( const Vector& coordinate, const Vector& direction, const HalfEdgeIter& half_edge );
+         static double intersectRay( const Vector& coordinate, const Vector& direction, const HalfEdgeIter& half_edge, const double tmax )
 
          static Vector rotateAcrossBy( const Vector& direction, const Vector& axis, const double& angle );
 

@@ -4,8 +4,10 @@
 #include "Quaternion.h"
 #include "Vector.h"
 #include <Math.h> /* pi */
+#include <algorithm>
 
 #define EPSILON 1e-6
+#define INF 1e6
 
 namespace DDG
 {
@@ -104,7 +106,7 @@ namespace DDG
 
       // Walk along this direction for distance [ h = v*dt ]
       Quaternion accumulated_angle;
-      Vector final_coordinate;
+    /*  Vector final_coordinate; */
 
       // Keep track of how much distance is left and the direction you are going (which must be tangent to the surface)
       // This assumes for small timesteps velocity is constant and so we step straight in one direction
@@ -113,15 +115,19 @@ namespace DDG
       while( h_remains > 0 ) ////what happens at mesh boundaries???
       {
           // determine which of two other edges would be intersected first
+	/*
           double counter = rayLineIntersectDistance( edge_crossing_coord, direction, current_he->next );
           double clockwise = rayLineIntersectDistance( edge_crossing_coord, direction, current_he->next->next );
           HalfEdgeIter crossing_he = counter < clockwise ? current_he->next : current_he->next->next;
           double distance = counter < clockwise ? counter : clockwise;
+	*/
+	double distance = intersectRay( edge_crossing_coord, direction, current_he->next, h_remains );
 
           if( h_remains > distance )
           // Flip to the next face, continue to travel remaider of h
           {
-            edge_crossing_coord += distance * direction;
+            /* edge_crossing_coord += distance * direction; */
+
             double theta = acos( dot( crossing_he->flip->face->normal(), current_he->face->normal() ) );
             Quaternion angleChange = Quaternion( cos(theta/2), sin(theta/2)*direction);
             accumulated_angle = accumulated_angle * angleChange;
@@ -133,10 +139,11 @@ namespace DDG
               // This can be done simply by recomputing the velocity (WhitneyInterp) at edge crossings everytime instead of turning/curving the direction vec 
 
             current_he = crossing_he->flip;
-          }
+          } /*
           else{
             final_coordinate = edge_crossing_coord + h_remains * direction;
-          }
+          } */
+
           h_remains -= distance;
       }
 
@@ -201,10 +208,12 @@ namespace DDG
     return;
   }   
 
-  double Fluid :: rayLineIntersectDistance( const Vector& coordinate, const Vector& direction, const HalfEdgeIter& half_edge )
+  double Fluid :: intersectRay( const Vector& coordinate, const Vector& direction, const HalfEdgeIter& half_edge, const double tmax )
   // ray should never negatively intersect with halfEdge
   // since rays are emitted internally to a triangle from the border
   {
+    double t = INF;
+
     Vector e1 = half_edge->flip->vertex - half_edge->vertex;
     Vector v1 = half_edge->vertex - direction;
     double t1 = cross( v1, e1 ) / cross( direction, e1 ); 
@@ -213,13 +222,11 @@ namespace DDG
     Vector v2 = half_edge->next->vertex - direction;
     double t2 = cross( v2, e2 ) / cross( direction, e2 );
 
-    if ( t1 < t2 ) {
-	coordinate = coordinate + direction * t1;
-	return t1;
-    } 
-	
-    coordinate = coordinate + direction * t2; 
-    return t2;
+    t = std::min( t1, t2 );
+    t = std::min( t, tmax );  
+ 
+    coordinate = coordinate + direction * t; 
+    return t;
   }
 
   void Fluid :: updateEdgeWeights( )
