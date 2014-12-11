@@ -7,7 +7,6 @@
 #include <algorithm>
 
 #define EPSILON 1e-6
-#define INF 1e6
 
 namespace DDG
 {
@@ -212,8 +211,6 @@ namespace DDG
   // ray should never negatively intersect with halfEdge
   // since rays are emitted internally to a triangle from the border
   {
-    double t = INF;
-
     Vector e1 = half_edge->flip->vertex - half_edge->vertex;
     Vector v1 = half_edge->vertex - direction;
     double t1 = cross( v1, e1 ) / cross( direction, e1 ); 
@@ -222,7 +219,7 @@ namespace DDG
     Vector v2 = half_edge->next->vertex - direction;
     double t2 = cross( v2, e2 ) / cross( direction, e2 );
 
-    t = std::min( t1, t2 );
+    double t = std::min( t1, t2 );
     t = std::min( t, tmax );  
  
     coordinate = coordinate + direction * t; 
