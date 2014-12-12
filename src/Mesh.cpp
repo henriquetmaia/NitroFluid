@@ -167,12 +167,12 @@ namespace DDG
 
       for( VertexCIter v = vertices.begin(); v != vertices.end(); v++ )
       {
-         int u_id = v->index;
+         int u_id = v->getID();
          HalfEdgeCIter h = v->he;
          do
          {
             double weight = 0.5 * ( h->cotan() + h->flip->cotan() );
-            int j_id = h->next->vertex->index;
+            int j_id = h->next->vertex->getID();
             laplacian( u_id, j_id ) -= weight;
             laplacian( u_id, u_id ) += weight;
             h = h->flip->next;

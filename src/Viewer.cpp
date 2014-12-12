@@ -20,11 +20,11 @@ namespace DDG
    int Viewer::windowSize[2] = { 512, 512 };
    Camera Viewer::camera;
    Shader Viewer::shader;
-   Fluid fluid;
+   // Fluid* fluid;
    
    void Viewer :: init( void )
    {
-      fluid = Fluid( &mesh, Fluid::ProjectionComponent::DIV );
+      // fluid = new Fluid( &mesh, Fluid::ProjectionComponent::DIV );
       restoreViewerState();
       initGLUT();
       initGL();
@@ -132,7 +132,7 @@ namespace DDG
    void Viewer :: mProcess( void )
    {
       // TODO process geometry here!
-
+/*
       if( fluid == NULL ){
          std::cerr << "[Viewer::mProcess] Fluid not initialized" << std::endl;
          exit( EXIT_FAILURE );
@@ -178,7 +178,7 @@ namespace DDG
 
          fluid.advectMarkers( dt );
       }
-
+*/
       updateDisplayList();
    }
    
@@ -375,13 +375,18 @@ namespace DDG
 
    void Viewer :: drawPolygons( void )
    {
-      glColor3f( 1., .4, 0.5 );
+      // Default color
+      glColor3f( 1., .4, 0 );
 
       for( FaceCIter f  = mesh.faces.begin();
                      f != mesh.faces.end();
                      f ++ )
       {
          if( f->isBoundary() ) continue;
+
+
+         //INTERP_COLOR
+
 
          glBegin( GL_POLYGON );
          if( mode == renderWireframe )
@@ -404,6 +409,7 @@ namespace DDG
             he = he->next;
          }
          while( he != f->he );
+
          glEnd();
       }
    }

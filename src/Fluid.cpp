@@ -37,11 +37,8 @@ namespace DDG
     
   void Fluid :: buildOperators( )
   {
-    HodgeStar0Form<Real>::build(*fluid_ptr, star0);
     HodgeStar1Form<Real>::build(*fluid_ptr, star1);
-    HodgeStar2Form<Real>::build(*fluid_ptr, star2);
     ExteriorDerivative0Form<Real>::build(*fluid_ptr, d0);
-    ExteriorDerivative1Form<Real>::build(*fluid_ptr, d1);
   } 
 
 /*
@@ -94,11 +91,11 @@ namespace DDG
     {
       // Get center of edge
       Vector edge_vec = e->he->flip->vertex->position - e->he->vertex->position;
-      Vector edge_crossing_coord = e->he->vertex->position + ( edge_vec / 2 );
+      Vector current_coord = e->he->vertex->position + ( edge_vec / 2 );
 
       // Integrate the velocity along the edge (get velocity at edge midpoint)
       // by interpolating one of the two bordering triangle faces
-      Vector original_velocity = whitneyInterpolate( edge_crossing_coord, e );
+      Vector original_velocity = whitneyInterpolate( current_coord, e );
 
       // Determine which halfEdge to use (face associated with velocity direction)
       HalfEdgeIter current_he = dot( cross( edge_vec, original_velocity ), e->he->face->normal() ) > 0.0 ? e->he : e->he->flip; // TODO: Clean this up
@@ -120,7 +117,8 @@ namespace DDG
           HalfEdgeIter crossing_he = counter < clockwise ? current_he->next : current_he->next->next;
           double distance = counter < clockwise ? counter : clockwise;
 	*/
-	double distance = intersectRay( edge_crossing_coord, direction, current_he->next, h_remains );
+          HalfEdgeIter crossing_he;
+        	double distance = intersectRay( current_coord, direction, current_he, h_remains, crossing_he );
 
           if( h_remains > distance )
           // Flip to the next face, continue to travel remaider of h
@@ -147,7 +145,7 @@ namespace DDG
       }
 
       // Compute interpolated velocity at this point
-      Vector acquired_velocity = whitneyInterpolate( final_coordinate, current_he ); // current_he is now inside triangle face we care about
+      Vector acquired_velocity = whitneyInterpolate( current_coord, current_he ); // current_he is now inside triangle face we care about
 
       // Parallel transport the velocity back to the original face
         // (rotate direction vector back by accumulated angle)
@@ -207,17 +205,17 @@ namespace DDG
     return;
   }   
 
-  double Fluid :: intersectRay( const Vector& coordinate, const Vector& direction, const HalfEdgeIter& half_edge, const double tmax )
+  double Fluid :: intersectRay( Vector& coordinate, const Vector& direction, const HalfEdgeIter& half_edge, const double tmax, HalfEdgeIter& crossing_half_edge )
   // ray should never negatively intersect with halfEdge
   // since rays are emitted internally to a triangle from the border
   {
-    Vector e1 = half_edge->flip->vertex - half_edge->vertex;
-    Vector v1 = half_edge->vertex - direction;
-    double t1 = cross( v1, e1 ) / cross( direction, e1 ); 
+    Vector e1 = half_edge->flip->vertex->position - half_edge->vertex->position;
+    Vector v1 = half_edge->vertex->position - direction;
+    double t1 = cross( v1, e1 ).norm() / cross( direction, e1 ).norm(); 
 
-    Vector e2 = half_edge->next->flip->vertex - half_edge->next->vertex;
-    Vector v2 = half_edge->next->vertex - direction;
-    double t2 = cross( v2, e2 ) / cross( direction, e2 );
+    Vector e2 = half_edge->next->flip->vertex->position - half_edge->next->vertex->position;
+    Vector v2 = half_edge->next->vertex->position - direction;
+    double t2 = cross( v2, e2 ).norm() / cross( direction, e2 ).norm();
 
     double t = std::min( t1, t2 );
     t = std::min( t, tmax );  

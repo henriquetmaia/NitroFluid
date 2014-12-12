@@ -73,7 +73,7 @@ namespace DDG
          void updateEdgeWeights( void );
 
          // Static helper functions:
-         static double intersectRay( const Vector& coordinate, const Vector& direction, const HalfEdgeIter& half_edge, const double tmax )
+         static double intersectRay( Vector& coordinate, const Vector& direction, const HalfEdgeIter& half_edge, const double tmax, HalfEdgeIter& crossing_half_edge );
 
          static Vector rotateAcrossBy( const Vector& direction, const Vector& axis, const double& angle );
 
@@ -88,11 +88,8 @@ namespace DDG
          Mesh* fluid_ptr;
 
          // Discrete Operators
-         SparseMatrix<Real> star0;
          SparseMatrix<Real> star1;
-         SparseMatrix<Real> star2;
          SparseMatrix<Real> d0;
-         SparseMatrix<Real> d1;
 
    };
 }
