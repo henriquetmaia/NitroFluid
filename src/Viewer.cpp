@@ -31,7 +31,9 @@ namespace DDG
       initGLUT();
       initGL();
       initGLSL();
-   
+
+      mProcess();
+      
       updateDisplayList();
    
       glutMainLoop();
@@ -140,13 +142,20 @@ namespace DDG
          exit( EXIT_FAILURE );
       }
 
-      const float dt = 3.0;
+      const float dt = 20.0;
       const Fluid::AdvectionScheme advectType = Fluid::SEMI_LAGRANGIAN;
       const Fluid::ProjectionComponent projectType = Fluid::DIV;
 
+    for( EdgeIter e = fluid->fluid_ptr->edges.begin(); e != fluid->fluid_ptr->edges.end(); ++e )
+    {
+      if( e->getID() == 4 ){
+        std::cout << "post construct before advect: " << e->getCoef() << std::endl;
+      }
+    }
+
       {
          assert( dt > 0. );
-
+         std::cout << "AFTER constructor " << std::endl;
          //TODO: check for interaction/input/Forces
 
          //advect velocity field
@@ -158,7 +167,9 @@ namespace DDG
             std::cerr << "Advection Scheme not implemeted, exiting" << std::endl;
             return;
          }
+         std::cout << "AFTER ADVECT: " << std::endl;
          fluid->updateEdgeWeights( );
+
 
          //project pressure under some criteria:
          if( projectType == Fluid::CURL ){
@@ -174,13 +185,16 @@ namespace DDG
             std::cerr << "Projection Component not implemented, exiting" << std::endl;
             return;
          }
+         std::cout << "AFTER PROJECT: " << std::endl;
          fluid->updateEdgeWeights( );
+
          fluid->advectColorAlongField( dt );
       }
 
       updateDisplayList();
       sim_time += dt;
       std::cout << "t: " << sim_time << std::endl;
+
    }
    
    void Viewer :: mResetMesh( void )
@@ -397,14 +411,17 @@ namespace DDG
          HalfEdgeCIter hec = f->he;
          do
          {
-            // double r = ((double) rand() / (RAND_MAX));
-            // double g = ((double) rand() / (RAND_MAX));
-            // double b = ((double) rand() / (RAND_MAX));
-            // glColor3f( r, g, b );
-            color += 0.3 * hec->vertex->color;
+            // color += hec->vertex->color;
+            Vector edge = hec->vertex->position - hec->flip->vertex->position;
+            edge.normalize();
+            edge *= hec->edge->getCoef();
+            // std::cout << "coef: " << hec->edge->getCoef() <<std::endl;
+            color += edge;
             hec = hec->next;
          }
          while( hec != f->he );
+         // color = color / 3;
+         color.normalize();
          glColor3f( color.x, color.y, color.z );
 
          if( f->getID() == 4 ){

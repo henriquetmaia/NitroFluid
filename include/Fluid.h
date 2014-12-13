@@ -54,6 +54,9 @@ namespace DDG
 
          void updateEdgeWeights( void );
 
+         Mesh* fluid_ptr;
+
+
       protected:
 
          void prescribeVelocityField( int vf );
@@ -84,11 +87,11 @@ namespace DDG
 
          // viscosity/density/number of samples/other parameters?
 
-         Mesh* fluid_ptr;
 
          // Discrete Operators
          SparseMatrix<Real> star1;
          SparseMatrix<Real> d0;
+         SparseMatrix<Real> d1;
 
    };
 }

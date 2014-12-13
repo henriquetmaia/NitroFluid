@@ -11,6 +11,7 @@
 #define DDG_EDGE_H
 
 #include "Types.h"
+#include <iostream>
 
 namespace DDG
 {
@@ -21,8 +22,10 @@ namespace DDG
 
         void setCoef( double newCoef ) { mod_coef = newCoef; }
 
-        void updateRefCoef( void ) { ref_coef = mod_coef; }
-
+        void updateRefCoef( void ) { 
+          // std::cout << "before:" << ref_coef << " after:" << mod_coef << std::endl;
+         ref_coef = mod_coef; }
+ 
         void setID( const int& new_id ) { index = new_id; };
         // assigns a new ID to the edge
 

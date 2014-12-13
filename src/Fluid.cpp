@@ -15,8 +15,12 @@ namespace DDG
   :fluid_ptr( surface_ptr )
   {
     prescribeVelocityField( 1 );
-    prescribeDensity( 0 );
+    prescribeDensity( 1 );
     buildOperators( );  
+
+    // SparseMatrix<Real> d = d1 * d0;
+    // std::cout << "d: " << d1 * d0 << std::endl;
+    // std::cout << "*: " << star1 <<std::endl;
 
     // Project pressure to guarantee initially divergence free field:
     if( projectType == CURL ){
@@ -32,6 +36,7 @@ namespace DDG
       std::cerr << "Projection Component not implemented, exiting" << std::endl;
       return;
     }
+    updateEdgeWeights();
   }
 
   Fluid :: ~Fluid( void )
@@ -44,11 +49,11 @@ namespace DDG
       case 0:
         for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e )
         {
-          e->setCoef( 1.0 );
+          e->setCoef( 8.0 );
         }		
         break; 
       case 1:
-        Vector x( 1, 0, 0 );
+        Vector x( 8, 0, 0 );
         for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e )
         {
       	  Vector v = e->he->flip->vertex->position - e->he->vertex->position;
@@ -73,10 +78,12 @@ namespace DDG
       case 1:
         for( VertexIter v = fluid_ptr->vertices.begin(); v != fluid_ptr->vertices.end(); ++v )
         {
-          v->color = (v->position + Vector(0.5,0.5,0.5)) / 1.5;
+          v->color = (v->position + Vector(1.0,1.0,1.0)) / 2.0;
         }
       	// texture map???
       	break;
+        // default:
+        // break;
     }
   }
 
@@ -84,6 +91,7 @@ namespace DDG
   {
     HodgeStar1Form<Real>::build(*fluid_ptr, star1);
     ExteriorDerivative0Form<Real>::build(*fluid_ptr, d0);
+    ExteriorDerivative1Form<Real>::build(*fluid_ptr, d1);
   } 
 
   void Fluid :: advectVelocitySemiLagrangian( const float& dt )
@@ -113,6 +121,11 @@ namespace DDG
 
       // Update the velocity at initial edge to be the dot product of aquired velocity with original velocity
       double advectedWeight = dot( acquired_velocity, edge_vec );
+
+
+      if( e->getID() == 4 ){
+        std::cout << "before: " << e->getCoef() <<" advectedWeight: " << advectedWeight << std::endl;
+      }
       e->setCoef( advectedWeight );
     }
   }
@@ -228,8 +241,19 @@ namespace DDG
 
     for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e ){
       double u_new = e->getCoef() - gradP( e->getID() );
+            if( e->getID() == 4 ){
+      std::cout << "getCoef before u_new: " << e->getCoef() << std::endl;
+            }
       e->setCoef( u_new );
+        if( e->getID() == 4 ){
+            std::cout << "getCoef after u_new: " << e->getCoef() << std::endl;
+    }
     } 
+
+    // std::cout << "A: " << A << std::endl;
+    // std::cout << "divU: " << divU << std::endl;
+    // std::cout << "gradP: " << gradP << std::endl;
+
   }          
 
   void Fluid :: projectHarmonic( void )
@@ -250,11 +274,11 @@ namespace DDG
     // return t, update coordinate, and update crossing_he 
 
     Vector e1 = half_edge->flip->vertex->position - half_edge->vertex->position;
-    Vector v1 = half_edge->vertex->position - direction;
+    Vector v1 = half_edge->vertex->position - coordinate;
     double t1 = cross( v1, e1 ).norm() / cross( direction, e1 ).norm(); 
 
     Vector e2 = half_edge->next->flip->vertex->position - half_edge->next->vertex->position;
-    Vector v2 = half_edge->next->vertex->position - direction;
+    Vector v2 = half_edge->next->vertex->position - coordinate;
     double t2 = cross( v2, e2 ).norm() / cross( direction, e2 ).norm();
 
     double t = 0.0;
@@ -346,7 +370,7 @@ namespace DDG
   }
 
   /*
-    For Details, see Design of Tangent Vector Fields [Fisher et alia 07]
+    For details, see Design of Tangent Vector Fields [Fisher et alia 07]
 
            k
           / \
