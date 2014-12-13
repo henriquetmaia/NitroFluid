@@ -5,6 +5,7 @@
 #include "Vector.h"
 #include <Math.h> /* pi */
 #include <algorithm>
+#include <stdlib.h>
 
 #define EPSILON 1e-6
 
@@ -13,7 +14,8 @@ namespace DDG
   Fluid :: Fluid( Mesh*& surface_ptr, const ProjectionComponent& projectType )
   :fluid_ptr( surface_ptr )
   {
-    // Initiate anything else?
+    prescribeVelocityField( 0 );
+    prescribeDensity( 0 );
     buildOperators( );  
 
     // Project pressure to guarantee initially divergence free field:
@@ -34,7 +36,44 @@ namespace DDG
 
   Fluid :: ~Fluid( void )
   {}
-    
+   
+  void Fluid :: prescribeVelocityField( int vf )
+  {	
+    switch ( vf )
+    {
+      case 0:
+        for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e )
+        {
+          e->mod_coef = 1.0;
+        }		
+        break; 
+      case 1:
+	Vector x( 1, 0, 0 );
+	for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e )
+        {
+	  Vector v = e->he->flip->vertex->position - e->he->vertex->position;
+          e->mod_coef = dot ( v, x );
+        }	
+	break;
+    }    
+  }
+
+  void Fluid:: prescribeDensity( int d )
+  {
+    switch ( d )
+    {
+      case 0:
+	for( VertexIter v = fluid_ptr->vertices.begin(); v != fluid_ptr->vertices.end(); ++v )
+        {
+          v->rho = rand () / RAND_MAX;
+        }
+	break;
+      case 1:
+	// texture map???
+	break;
+    }
+  }
+
   void Fluid :: buildOperators( )
   {
     HodgeStar1Form<Real>::build(*fluid_ptr, star1);
@@ -217,7 +256,15 @@ namespace DDG
     Vector v2 = half_edge->next->vertex->position - direction;
     double t2 = cross( v2, e2 ).norm() / cross( direction, e2 ).norm();
 
-    double t = std::min( t1, t2 );
+    double t = 0.0;
+    if ( t1 < t2 ) {
+	t = t1;
+	crossing_half_edge = crossing_half_edge->next;
+    } else {
+	t = t2;
+	crossing_half_edge = crossing_half_edge->next->next;
+    }
+
     t = std::min( t, tmax );  
  
     coordinate = coordinate + direction * t; 

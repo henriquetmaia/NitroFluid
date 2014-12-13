@@ -264,6 +264,12 @@ namespace DDG
          case ' ':
             mProcess();
             break;
+         case 'v':
+	 //   fluid->prescribeVelocityField( 1 );	
+	    break;
+	 case 'd':
+	 //   fluid->prescribeDensity( 1 );	
+	    break;		
          case 27:
             mExit();
             break;

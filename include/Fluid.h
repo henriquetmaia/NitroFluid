@@ -57,7 +57,10 @@ namespace DDG
          // // updates/forces the field according to user interaction        
 
       private:
-         
+         void prescribeVelocityField( int vf )
+ 
+	 void prescribeDensity( int d );
+
          void buildOperators( );
          
          void advectMarkers( const float& dt );
