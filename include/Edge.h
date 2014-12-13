@@ -19,7 +19,7 @@ namespace DDG
       public:
         double getCoef( void ) const { return ref_coef; }
 
-        void setCoef( double& newCoef ) { mod_coef = newCoef; }
+        void setCoef( double newCoef ) { mod_coef = newCoef; }
 
         void updateRefCoef( void ) { ref_coef = mod_coef; }
 

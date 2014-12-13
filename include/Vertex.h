@@ -41,6 +41,8 @@ namespace DDG
          Vector position;
          // location of vertex in Euclidean 3-space
 
+         Vector color;
+
       private:
          int index;// = -1;
          // unique ID with reference to a mesh in range 0, ... , NumVertices - 1

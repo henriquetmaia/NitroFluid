@@ -20,11 +20,13 @@ namespace DDG
    int Viewer::windowSize[2] = { 512, 512 };
    Camera Viewer::camera;
    Shader Viewer::shader;
-   // Fluid* fluid;
+   Fluid* fluid;
    
    void Viewer :: init( void )
    {
-      // fluid = new Fluid( &mesh, Fluid::ProjectionComponent::DIV );
+      // using Fluid::ProjectionComponent;
+      // ProjectionComponent d = 
+      fluid = new Fluid( &mesh, Fluid::DIV );
       restoreViewerState();
       initGLUT();
       initGL();
@@ -132,15 +134,15 @@ namespace DDG
    void Viewer :: mProcess( void )
    {
       // TODO process geometry here!
-/*
+      static double sim_time = 0.;
       if( fluid == NULL ){
          std::cerr << "[Viewer::mProcess] Fluid not initialized" << std::endl;
          exit( EXIT_FAILURE );
       }
 
-      const float dt = 0.01;
-      const AdvectionScheme advectType = Fluid::AdvectionScheme::SEMI_LAGRANGIAN;
-      const ProjectionComponent projectType = Fluid::ProjectionComponent::DIV;
+      const float dt = 3.0;
+      const Fluid::AdvectionScheme advectType = Fluid::SEMI_LAGRANGIAN;
+      const Fluid::ProjectionComponent projectType = Fluid::DIV;
 
       {
          assert( dt > 0. );
@@ -148,38 +150,37 @@ namespace DDG
          //TODO: check for interaction/input/Forces
 
          //advect velocity field
-         if( advectType == SEMI_LAGRANGIAN )
+         if( advectType == Fluid::SEMI_LAGRANGIAN )
          {
-            fluid.advectSemiLagrangian( dt );
+            fluid->advectVelocitySemiLagrangian( dt );
          }
          else{
             std::cerr << "Advection Scheme not implemeted, exiting" << std::endl;
             return;
          }
-         fluid.updateEdgeWeights( );
+         fluid->updateEdgeWeights( );
 
          //project pressure under some criteria:
-         if( projectType == CURL ){
-            fluid.projectCurl( );
+         if( projectType == Fluid::CURL ){
+            fluid->projectCurl( );
          }
-         else if( projectType == DIV ){
-            fluid.projectDivergence( );
+         else if( projectType == Fluid::DIV ){
+            fluid->projectDivergence( );
          }
-         else if ( projectType == HARMONIC ){
-            fluid.projectHarmonic( );
+         else if ( projectType == Fluid::HARMONIC ){
+            fluid->projectHarmonic( );
          }
          else{
             std::cerr << "Projection Component not implemented, exiting" << std::endl;
             return;
          }
-         fluid.updateEdgeWeights( );
-
-         //advectMarker along the flow... update visualization (here? or in view?)
-
-         fluid.advectMarkers( dt );
+         fluid->updateEdgeWeights( );
+         fluid->advectColorAlongField( dt );
       }
-*/
+
       updateDisplayList();
+      sim_time += dt;
+      std::cout << "t: " << sim_time << std::endl;
    }
    
    void Viewer :: mResetMesh( void )
@@ -195,6 +196,7 @@ namespace DDG
    
    void Viewer :: mExit( void )
    {
+      delete fluid;
       storeViewerState();
       exit( 0 );
    }
@@ -265,11 +267,11 @@ namespace DDG
             mProcess();
             break;
          case 'v':
-	 //   fluid->prescribeVelocityField( 1 );	
-	    break;
-	 case 'd':
-	 //   fluid->prescribeDensity( 1 );	
-	    break;		
+// fluid->prescribeVelocityField( 1 );	
+            break;
+         case 'd':
+//   fluid->prescribeDensity( 1 );	
+            break;	
          case 27:
             mExit();
             break;
@@ -390,9 +392,25 @@ namespace DDG
       {
          if( f->isBoundary() ) continue;
 
-
          //INTERP_COLOR
+         Vector color;
+         HalfEdgeCIter hec = f->he;
+         do
+         {
+            // double r = ((double) rand() / (RAND_MAX));
+            // double g = ((double) rand() / (RAND_MAX));
+            // double b = ((double) rand() / (RAND_MAX));
+            // glColor3f( r, g, b );
+            color += 0.3 * hec->vertex->color;
+            hec = hec->next;
+         }
+         while( hec != f->he );
+         glColor3f( color.x, color.y, color.z );
 
+         if( f->getID() == 4 ){
+            std::cout << "F4c: " << f->color <<std::endl;
+            std::cout << "V4c: " << color <<std::endl;            
+         }
 
          glBegin( GL_POLYGON );
          if( mode == renderWireframe )

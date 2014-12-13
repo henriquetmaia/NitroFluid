@@ -11,6 +11,7 @@
 #define DDG_FACE_H
 
 #include "Types.h"
+#include "Vector.h"
 
 namespace DDG
 {
@@ -36,6 +37,8 @@ namespace DDG
 
          HalfEdgeIter he;
          // points to one of the halfedges associated with this face
+
+         Vector color;
 
       private:
          int index;// = -1; 

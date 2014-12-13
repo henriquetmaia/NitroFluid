@@ -794,12 +794,12 @@ namespace DDG
       t0 = clock();
       L = cholmod_l_analyze( Ac, context );
       t1 = clock();
-      cerr << "analyze: " << seconds(t0,t1) << "s" << endl;
+      // cerr << "analyze: " << seconds(t0,t1) << "s" << endl;
 
       t0 = clock();
       cholmod_l_factorize( Ac, L, context );
       t1 = clock();
-      cerr << "factorize: " << seconds(t0,t1) << "s" << endl;
+      // cerr << "factorize: " << seconds(t0,t1) << "s" << endl;
    }
 
    template <class T>

@@ -11,10 +11,10 @@
 
 namespace DDG
 {
-  Fluid :: Fluid( Mesh*& surface_ptr, const ProjectionComponent& projectType )
+  Fluid :: Fluid( Mesh* surface_ptr, const ProjectionComponent& projectType )
   :fluid_ptr( surface_ptr )
   {
-    prescribeVelocityField( 0 );
+    prescribeVelocityField( 1 );
     prescribeDensity( 0 );
     buildOperators( );  
 
@@ -44,16 +44,18 @@ namespace DDG
       case 0:
         for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e )
         {
-          e->mod_coef = 1.0;
+          e->setCoef( 1.0 );
         }		
         break; 
       case 1:
-	Vector x( 1, 0, 0 );
-	for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e )
+        Vector x( 1, 0, 0 );
+        for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e )
         {
-	  Vector v = e->he->flip->vertex->position - e->he->vertex->position;
-          e->mod_coef = dot ( v, x );
-        }	
+      	  Vector v = e->he->flip->vertex->position - e->he->vertex->position;
+          double weight = dot( v, x );
+          e->setCoef( weight );
+          e->updateRefCoef();
+        }
 	break;
     }    
   }
@@ -63,14 +65,18 @@ namespace DDG
     switch ( d )
     {
       case 0:
-	for( VertexIter v = fluid_ptr->vertices.begin(); v != fluid_ptr->vertices.end(); ++v )
+      	for( VertexIter v = fluid_ptr->vertices.begin(); v != fluid_ptr->vertices.end(); ++v )
         {
-          v->rho = rand () / RAND_MAX;
+          v->color = Vector( (double) rand() / RAND_MAX, (double) rand() / RAND_MAX, (double) rand() / RAND_MAX );
         }
-	break;
+      	break;
       case 1:
-	// texture map???
-	break;
+        for( VertexIter v = fluid_ptr->vertices.begin(); v != fluid_ptr->vertices.end(); ++v )
+        {
+          v->color = (v->position + Vector(0.5,0.5,0.5)) / 1.5;
+        }
+      	// texture map???
+      	break;
     }
   }
 
@@ -80,84 +86,89 @@ namespace DDG
     ExteriorDerivative0Form<Real>::build(*fluid_ptr, d0);
   } 
 
-/*
-  void Fluid :: flow( const float& dt,
-                      const AdvectionScheme& advectType,
-                      const ProjectionComponent& projectType,
-                      const Interpolation& interpType
-                    )
-  {
-    assert( dt > 0. );
-
-    //TODO: check for interaction/input/Forces
-
-    //advect velocity field
-    if( advectType == SEMI_LAGRANGIAN )
-    {
-      advectSemiLagrangian( dt );
-    }
-    else{
-      std::cerr << "Advection Scheme not implemeted, exiting" << std::endl;
-      return;
-    }
-    updateEdgeWeights( );
-
-    //project pressure under some criteria:
-    if( projectType == CURL ){
-      projectCurl( );
-    }
-    else if( projectType == DIV ){
-      projectDivergence( );
-    }
-    else if ( projectType == HARMONIC ){
-      projectHarmonic( );
-    }
-    else{
-      std::cerr << "Projection Component not implemented, exiting" << std::endl;
-      return;
-    }
-    updateEdgeWeights( );
-
-    //advectMarker along the flow... update visualization (here? or in view?)
-
-    advectMarkers( dt );
-  }
-*/
-
-  void Fluid :: advectSemiLagrangian( const float& dt )
+  void Fluid :: advectVelocitySemiLagrangian( const float& dt )
   {
     for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e )
     {
       // Get center of edge
       Vector edge_vec = e->he->flip->vertex->position - e->he->vertex->position;
-      Vector current_coord = e->he->vertex->position + ( edge_vec / 2 );
+      Vector edge_midpoint = e->he->vertex->position + ( edge_vec / 2 );
 
       // Integrate the velocity along the edge (get velocity at edge midpoint)
       // by interpolating one of the two bordering triangle faces
-      Vector original_velocity = whitneyInterpolate( current_coord, e );
+      HalfEdgeIter current_he;
+      Vector original_velocity = whitneyInterpolateVelocity( edge_midpoint, e, current_he );
 
-      // Determine which halfEdge to use (face associated with velocity direction)
-      HalfEdgeIter current_he = dot( cross( edge_vec, original_velocity ), e->he->face->normal() ) > 0.0 ? e->he : e->he->flip; // TODO: Clean this up
-
-      // Walk along this direction for distance [ h = v*dt ]
+      Vector final_coord;
       Quaternion accumulated_angle;
-    /*  Vector final_coordinate; */
+      backtrackAlongField( dt, edge_midpoint, original_velocity, current_he, final_coord, accumulated_angle );
+
+      // Compute interpolated velocity at this point
+      Vector acquired_velocity = whitneyInterpolateVelocity( final_coord, current_he ); // current_he is now inside triangle face we care about
+
+      // Parallel transport the velocity back to the original face (rotate direction vector back by accumulated angle)
+      acquired_velocity = ( accumulated_angle.conj() * Quaternion( acquired_velocity ) * accumulated_angle ).im();
+
+      assert( std::abs( dot( acquired_velocity, starting_he->face->normal() )  ) <= EPSILON ); // acquired_velocity lives on plane of original face 
+
+      // Update the velocity at initial edge to be the dot product of aquired velocity with original velocity
+      double advectedWeight = dot( acquired_velocity, edge_vec );
+      e->setCoef( advectedWeight );
+    }
+  }
+
+  void Fluid :: advectColorAlongField( const float& dt )
+  {
+    // Update all the face colors based on previous vertex colors
+    for( FaceIter f = fluid_ptr->faces.begin(); f != fluid_ptr->faces.end(); ++f )
+    {
+      // Get center of edge
+      Vector face_midpoint = ( f->he->vertex->position + f->he->next->vertex->position + f->he->next->next->vertex->position ) / 3;
+
+      Vector original_velocity = whitneyInterpolateVelocity( face_midpoint, f->he ); // returns a velocity
+
+      HalfEdgeIter final_he = f->he;
+      Vector final_coord;
+      Quaternion acc_angl;
+
+      backtrackAlongField( dt, face_midpoint, original_velocity, final_he, final_coord, acc_angl );
+
+      Vector acquired_color = barycentricInterpolateColors( final_coord, final_he );
+
+      // Update the velocity at initial edge to be the dot product of aquired velocity with original velocity
+      f->color = acquired_color;
+    }
+
+    // Update vertex colors by weighting the face colors on the ring around it and area/angle of contributing faces
+    for( VertexIter v = fluid_ptr->vertices.begin(); v != fluid_ptr->vertices.end(); ++v )
+    {
+      HalfEdgeCIter h = v->he;
+      Vector accumulated_color;
+      do
+      {
+         accumulated_color +=  h->face->color * ( h->face->area() / 3 );
+         h = h->flip->next;
+      }
+      while( h != v->he );
+      v->color = accumulated_color / v->dualArea();
+    }
+  }
+
+  void Fluid :: backtrackAlongField( const float& dt, const Vector start_pt, const Vector& start_vel, HalfEdgeIter& current_he, Vector& final_coord, Quaternion& accumulated_angle )
+  {
+      // Walk along this direction for distance [ h = v*dt ]
+      final_coord = start_pt;
 
       // Keep track of how much distance is left and the direction you are going (which must be tangent to the surface)
       // This assumes for small timesteps velocity is constant and so we step straight in one direction
-      double h_remains = original_velocity.norm() * dt;
-      Vector direction = original_velocity; direction.normalize();
+      double h_remains = start_vel.norm() * dt;
+      Vector direction = -start_vel; direction.normalize();
       while( h_remains > 0 ) ////what happens at mesh boundaries???
       {
           // determine which of two other edges would be intersected first
-	/*
-          double counter = rayLineIntersectDistance( edge_crossing_coord, direction, current_he->next );
-          double clockwise = rayLineIntersectDistance( edge_crossing_coord, direction, current_he->next->next );
-          HalfEdgeIter crossing_he = counter < clockwise ? current_he->next : current_he->next->next;
-          double distance = counter < clockwise ? counter : clockwise;
-	*/
+
           HalfEdgeIter crossing_he;
-        	double distance = intersectRay( current_coord, direction, current_he, h_remains, crossing_he );
+          double distance = intersectRay( final_coord, direction, current_he, h_remains, crossing_he );
 
           if( h_remains > distance )
           // Flip to the next face, continue to travel remaider of h
@@ -175,27 +186,10 @@ namespace DDG
               // This can be done simply by recomputing the velocity (WhitneyInterp) at edge crossings everytime instead of turning/curving the direction vec 
 
             current_he = crossing_he->flip;
-          } /*
-          else{
-            final_coordinate = edge_crossing_coord + h_remains * direction;
-          } */
+          }
 
           h_remains -= distance;
       }
-
-      // Compute interpolated velocity at this point
-      Vector acquired_velocity = whitneyInterpolate( current_coord, current_he ); // current_he is now inside triangle face we care about
-
-      // Parallel transport the velocity back to the original face
-        // (rotate direction vector back by accumulated angle)
-      acquired_velocity = ( accumulated_angle.conj() * Quaternion( acquired_velocity ) * accumulated_angle ).im();
-
-      assert( std::abs( dot( acquired_velocity, e->he->face->normal() )  ) <= EPSILON ); // acquired_velocity lives on plane of original face 
-
-      // Update the velocity at initial edge to be the dot product of aquired velocity with original velocity
-      double advectedWeight = dot( acquired_velocity, edge_vec );
-      e->setCoef( advectedWeight );
-    }
   }
 
   void Fluid :: projectCurl( void )
@@ -248,6 +242,13 @@ namespace DDG
   // ray should never negatively intersect with halfEdge
   // since rays are emitted internally to a triangle from the border
   {
+
+    //  !!! cannot assume ray is shot from center of edge or any edge at all,
+    // arbitrary ray, that lives on the face of triangle, intersect with edges of triangle
+    // use 'half_edge' as handle to this triangle,
+    // coordinate and direction give you the ray,
+    // return t, update coordinate, and update crossing_he 
+
     Vector e1 = half_edge->flip->vertex->position - half_edge->vertex->position;
     Vector v1 = half_edge->vertex->position - direction;
     double t1 = cross( v1, e1 ).norm() / cross( direction, e1 ).norm(); 
@@ -258,11 +259,11 @@ namespace DDG
 
     double t = 0.0;
     if ( t1 < t2 ) {
-	t = t1;
-	crossing_half_edge = crossing_half_edge->next;
+      t = t1;
+      crossing_half_edge = half_edge->next;
     } else {
-	t = t2;
-	crossing_half_edge = crossing_half_edge->next->next;
+    	t = t2;
+    	crossing_half_edge = half_edge->next->next;
     }
 
     t = std::min( t, tmax );  
@@ -279,13 +280,13 @@ namespace DDG
     }
   }
 
-  Vector Fluid :: whitneyInterpolate( const Vector& coordinate, const EdgeIter& edge )
+  Vector Fluid :: whitneyInterpolateVelocity( const Vector& coordinate, const EdgeIter& edge, HalfEdgeIter& chosen_he )
   {
     assert( coordinate lies on plane created by the edges neighboring triangle faces );
 
     // Calls whitneyInterpolate( coordinate, HALF_EDGE ) twice for neighboring triangles of edge
-    Vector left = whitneyInterpolate( coordinate, edge->he );
-    Vector right = whitneyInterpolate( coordinate, edge->he->flip );
+    Vector left = whitneyInterpolateVelocity( coordinate, edge->he );
+    Vector right = whitneyInterpolateVelocity( coordinate, edge->he->flip );
 
     // check if edge_wise components of vectors are the same
     assert( dot( left, ( e->he->flip->vertex->position - e->he->vertex->position ) ) == dot( right, ( e->he->flip->vertex->position - e->he->vertex->position ) ) );
@@ -295,7 +296,32 @@ namespace DDG
        // TODO: if we find we get a lot of viscosity/damping on our flow, we might find taking the MAX or Min side here is better (?)
     // ...For now we just take the largest.
 
-    return left.norm() > right.norm() ? left : right;
+    Vector interp_vec;
+    if( left.norm() > right.norm() ){
+      chosen_he = edge->he;
+      interp_vec = left;
+    }
+    else{
+      chosen_he = edge->he->flip;
+      interp_vec = right;
+    }
+
+    return interp_vec;
+  }
+
+  Vector Fluid :: barycentricInterpolateColors( const Vector& coordinate, const HalfEdgeIter& he )
+  {
+    float a_i, a_j, a_k;
+    Vector i = he->vertex->position;
+    Vector j = he->next->vertex->position;
+    Vector k = he->next->next->vertex->position;
+    BarycentricWeights( coordinate, i, j, k, a_i, a_j, a_k ); // Already asserts coordinate lies on triangle face
+
+    Vector color;
+    color += a_i * he->vertex->color;
+    color += a_j * he->next->vertex->color;
+    color += a_k * he->next->next->vertex->color;
+    return color;
   }
 
   void Fluid :: BarycentricWeights( const Vector coordinate, const Vector v_i, const Vector v_j, const Vector v_k, float &a_i, float &a_j, float &a_k)
@@ -317,7 +343,7 @@ namespace DDG
     assert( 0. <= a_i && a_i <= 1. && "Coordinate lies outside of triangle!" );
     assert( 0. <= a_j && a_j <= 1. && "Coordinate lies outside of triangle!" );
     assert( 0. <= a_k && a_k <= 1. && "Coordinate lies outside of triangle!" );
- }
+  }
 
   /*
     For Details, see Design of Tangent Vector Fields [Fisher et alia 07]
@@ -349,7 +375,7 @@ namespace DDG
                            ( C_jk*a_j - C_ki*a_i ) * P_ij
                          ) / ( 2 * Area );
   */
-  Vector Fluid :: whitneyInterpolate( const Vector& coordinate, const HalfEdgeIter& he )
+  Vector Fluid :: whitneyInterpolateVelocity( const Vector& coordinate, const HalfEdgeIter& he )
   { // compute whitney interpolation vector quantity for a point inside a triangle
 
     // Find barycentric weights of coordinate:

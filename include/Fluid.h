@@ -38,34 +38,13 @@ namespace DDG
             HARMONIC
          };
 
-         Fluid( Mesh*& surface_ptr, const ProjectionComponent& projectType = DIV );
+         Fluid( Mesh* surface_ptr, const ProjectionComponent& projectType = DIV );
 
          ~Fluid( void );
 
-         // static void flow( const float& dt,
-         //                   const AdvectionScheme& advectType,
-         //                   const ProjectionComponent& projectType,
-         //                   const Interpolation& interpType 
-         //                 );
-         // step fluid velocity and markers foward by dt with choice of advection, projection, and interpolation
+         void advectColorAlongField( const float& dt );
 
-      protected:
-         // static void prescribeField( ? );
-         // // initates the fluid field somehow
-
-         // static void interact( ? );
-         // // updates/forces the field according to user interaction        
-
-      private:
-         void prescribeVelocityField( int vf )
- 
-	 void prescribeDensity( int d );
-
-         void buildOperators( );
-         
-         void advectMarkers( const float& dt );
-
-         void advectSemiLagrangian( const float& dt );
+         void advectVelocitySemiLagrangian( const float& dt );
 
          void projectCurl( void );
 
@@ -75,6 +54,21 @@ namespace DDG
 
          void updateEdgeWeights( void );
 
+      protected:
+
+         void prescribeVelocityField( int vf );
+ 
+         void prescribeDensity( int d );
+
+         // static void interact( ? );
+         // // updates/forces the field according to user interaction        
+
+      private:
+
+         void buildOperators( );
+
+         void backtrackAlongField( const float& dt, const Vector start_pt, const Vector& start_vel, HalfEdgeIter& current_he, Vector& final_coord, Quaternion& accumulated_angle );
+
          // Static helper functions:
          static double intersectRay( Vector& coordinate, const Vector& direction, const HalfEdgeIter& half_edge, const double tmax, HalfEdgeIter& crossing_half_edge );
 
@@ -82,9 +76,11 @@ namespace DDG
 
          static void BarycentricWeights( const Vector coordinate, const Vector v_i, const Vector v_j, const Vector v_k, float &a_i, float &a_j, float &a_k );
 
-         static Vector whitneyInterpolate( const Vector& coordinate, const EdgeIter& edge );
+         static Vector whitneyInterpolateVelocity( const Vector& coordinate, const EdgeIter& edge, HalfEdgeIter& chosen_he );
 
-         static Vector whitneyInterpolate( const Vector& coordinate, const HalfEdgeIter& he );
+         static Vector whitneyInterpolateVelocity( const Vector& coordinate, const HalfEdgeIter& he );
+
+         static Vector barycentricInterpolateColors( const Vector& coordinate, const HalfEdgeIter& half_edge );
 
          // viscosity/density/number of samples/other parameters?
 
