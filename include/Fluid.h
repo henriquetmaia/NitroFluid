@@ -38,37 +38,37 @@ namespace DDG
             HARMONIC
          };
 
-         Fluid( Mesh* surface_ptr, const ProjectionComponent& projectType = DIV );
+         Fluid( Mesh& surface_ptr, const ProjectionComponent& projectType = DIV );
 
          ~Fluid( void );
 
-         void advectColorAlongField( const float& dt );
+         void advectColorAlongField( Mesh& fluid_ptr, const float& dt );
 
-         void advectVelocitySemiLagrangian( const float& dt );
+         void advectVelocitySemiLagrangian( Mesh& fluid_ptr, const float& dt );
 
-         void projectCurl( void );
+         void projectCurl( Mesh& fluid_ptr );
 
-         void projectDivergence( void );
+         void projectDivergence( Mesh& fluid_ptr );
 
-         void projectHarmonic( void );
+         void projectHarmonic( Mesh& fluid_ptr );
 
-         void updateEdgeWeights( void );
+         void updateEdgeWeights( Mesh& fluid_ptr );
 
-         Mesh* fluid_ptr;
+        // Mesh fluid_ptr;
 
 
       protected:
 
-         void prescribeVelocityField( int vf );
+         void prescribeVelocityField( Mesh& fluid_ptr, int vf );
  
-         void prescribeDensity( int d );
+         void prescribeDensity( Mesh& fluid_ptr, int d );
 
          // static void interact( ? );
          // // updates/forces the field according to user interaction        
 
       private:
 
-         void buildOperators( );
+         void buildOperators ( Mesh& fluid_ptr );
 
          void backtrackAlongField( const float& dt, const Vector start_pt, const Vector& start_vel, HalfEdgeIter& current_he, Vector& final_coord, Quaternion& accumulated_angle );
 

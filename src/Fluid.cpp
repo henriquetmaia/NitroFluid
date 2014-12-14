@@ -11,12 +11,11 @@
 
 namespace DDG
 {
-  Fluid :: Fluid( Mesh* surface_ptr, const ProjectionComponent& projectType )
-  :fluid_ptr( surface_ptr )
+  Fluid :: Fluid( Mesh& fluid_ptr, const ProjectionComponent& projectType )
   {
-    prescribeVelocityField( 1 );
-    prescribeDensity( 1 );
-    buildOperators( );  
+    prescribeVelocityField( fluid_ptr, 1 );
+    prescribeDensity( fluid_ptr, 1 );
+    buildOperators( fluid_ptr );  
 
     // SparseMatrix<Real> d = d1 * d0;
     // std::cout << "d: " << d1 * d0 << std::endl;
@@ -24,37 +23,37 @@ namespace DDG
 
     // Project pressure to guarantee initially divergence free field:
     if( projectType == CURL ){
-      projectCurl( );
+      projectCurl( fluid_ptr );
     }
     else if( projectType == DIV ){
-      projectDivergence( );
+      projectDivergence( fluid_ptr );
     }
     else if ( projectType == HARMONIC ){
-      projectHarmonic( );
+      projectHarmonic( fluid_ptr );
     }
     else{
       std::cerr << "Projection Component not implemented, exiting" << std::endl;
       return;
     }
-    updateEdgeWeights();
+    updateEdgeWeights( fluid_ptr );
   }
 
   Fluid :: ~Fluid( void )
   {}
    
-  void Fluid :: prescribeVelocityField( int vf )
+  void Fluid :: prescribeVelocityField( Mesh& fluid_ptr, int vf )
   {	
     switch ( vf )
     {
       case 0:
-        for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e )
+        for( EdgeIter e = fluid_ptr.edges.begin(); e != fluid_ptr.edges.end(); ++e )
         {
           e->setCoef( 8.0 );
         }		
         break; 
       case 1:
         Vector x( 8, 0, 0 );
-        for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e )
+        for( EdgeIter e = fluid_ptr.edges.begin(); e != fluid_ptr.edges.end(); ++e )
         {
       	  Vector v = e->he->flip->vertex->position - e->he->vertex->position;
           double weight = dot( v, x );
@@ -65,18 +64,18 @@ namespace DDG
     }    
   }
 
-  void Fluid:: prescribeDensity( int d )
+  void Fluid:: prescribeDensity( Mesh& fluid_ptr, int d )
   {
     switch ( d )
     {
       case 0:
-      	for( VertexIter v = fluid_ptr->vertices.begin(); v != fluid_ptr->vertices.end(); ++v )
+      	for( VertexIter v = fluid_ptr.vertices.begin(); v != fluid_ptr.vertices.end(); ++v )
         {
           v->color = Vector( (double) rand() / RAND_MAX, (double) rand() / RAND_MAX, (double) rand() / RAND_MAX );
         }
       	break;
       case 1:
-        for( VertexIter v = fluid_ptr->vertices.begin(); v != fluid_ptr->vertices.end(); ++v )
+        for( VertexIter v = fluid_ptr.vertices.begin(); v != fluid_ptr.vertices.end(); ++v )
         {
           v->color = (v->position + Vector(1.0,1.0,1.0)) / 2.0;
         }
@@ -87,16 +86,16 @@ namespace DDG
     }
   }
 
-  void Fluid :: buildOperators( )
+  void Fluid :: buildOperators( Mesh& fluid_ptr )
   {
-    HodgeStar1Form<Real>::build(*fluid_ptr, star1);
-    ExteriorDerivative0Form<Real>::build(*fluid_ptr, d0);
-    ExteriorDerivative1Form<Real>::build(*fluid_ptr, d1);
+    HodgeStar1Form<Real>::build(fluid_ptr, star1);
+    ExteriorDerivative0Form<Real>::build(fluid_ptr, d0);
+    ExteriorDerivative1Form<Real>::build(fluid_ptr, d1);
   } 
 
-  void Fluid :: advectVelocitySemiLagrangian( const float& dt )
+  void Fluid :: advectVelocitySemiLagrangian( Mesh& fluid_ptr, const float& dt )
   {
-    for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e )
+    for( EdgeIter e = fluid_ptr.edges.begin(); e != fluid_ptr.edges.end(); ++e )
     {
       // Get center of edge
       Vector edge_vec = e->he->flip->vertex->position - e->he->vertex->position;
@@ -130,10 +129,10 @@ namespace DDG
     }
   }
 
-  void Fluid :: advectColorAlongField( const float& dt )
+  void Fluid :: advectColorAlongField( Mesh& fluid_ptr, const float& dt )
   {
     // Update all the face colors based on previous vertex colors
-    for( FaceIter f = fluid_ptr->faces.begin(); f != fluid_ptr->faces.end(); ++f )
+    for( FaceIter f = fluid_ptr.faces.begin(); f != fluid_ptr.faces.end(); ++f )
     {
       // Get center of edge
       Vector face_midpoint = ( f->he->vertex->position + f->he->next->vertex->position + f->he->next->next->vertex->position ) / 3;
@@ -153,7 +152,7 @@ namespace DDG
     }
 
     // Update vertex colors by weighting the face colors on the ring around it and area/angle of contributing faces
-    for( VertexIter v = fluid_ptr->vertices.begin(); v != fluid_ptr->vertices.end(); ++v )
+    for( VertexIter v = fluid_ptr.vertices.begin(); v != fluid_ptr.vertices.end(); ++v )
     {
       HalfEdgeCIter h = v->he;
       Vector accumulated_color;
@@ -205,23 +204,23 @@ namespace DDG
       }
   }
 
-  void Fluid :: projectCurl( void )
+  void Fluid :: projectCurl( Mesh& fluid_ptr )
   {
     std::cerr << "Projection of Curl is not yet implemented, exiting" << std::endl;
     return;
   }
 
-  void Fluid :: projectDivergence( void )
+  void Fluid :: projectDivergence( Mesh& fluid_ptr )
   // first solve [ d * dp = d * u ] then solve [ u_new = u - dp ] 
   {
-    unsigned V = fluid_ptr->vertices.size();
-    unsigned E = fluid_ptr->edges.size();
+    unsigned V = fluid_ptr.vertices.size();
+    unsigned E = fluid_ptr.edges.size();
 
     // retrive vector of edge weights ( u )      
     DenseMatrix<Real> u = DenseMatrix<Real>(E, 1);
-    for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e ){
+    for( EdgeIter e = fluid_ptr.edges.begin(); e != fluid_ptr.edges.end(); ++e ){
       assert( 0 <= e->index && e->index < E );
-      u( e->getID() ) = fluid_ptr->edges[ e->getID() ].getCoef();
+      u( e->getID() ) = fluid_ptr.edges[ e->getID() ].getCoef();
     }
 
     SparseMatrix<Real> A( V, V );
@@ -239,7 +238,7 @@ namespace DDG
     DenseMatrix<Real> gradP( E, 1 );
     gradP = d0 * p;
 
-    for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e ){
+    for( EdgeIter e = fluid_ptr.edges.begin(); e != fluid_ptr.edges.end(); ++e ){
       double u_new = e->getCoef() - gradP( e->getID() );
             if( e->getID() == 4 ){
       std::cout << "getCoef before u_new: " << e->getCoef() << std::endl;
@@ -256,7 +255,7 @@ namespace DDG
 
   }          
 
-  void Fluid :: projectHarmonic( void )
+  void Fluid :: projectHarmonic( Mesh& fluid_ptr )
   {
     std::cerr << "Projection of Harmonic is not yet implemented, exiting" << std::endl;
     return;
@@ -296,9 +295,9 @@ namespace DDG
     return t;
   }
 
-  void Fluid :: updateEdgeWeights( )
+  void Fluid :: updateEdgeWeights( Mesh& fluid_ptr )
   {
-    for( EdgeIter e = fluid_ptr->edges.begin(); e != fluid_ptr->edges.end(); ++e )
+    for( EdgeIter e = fluid_ptr.edges.begin(); e != fluid_ptr.edges.end(); ++e )
     {
       e->updateRefCoef();
     }

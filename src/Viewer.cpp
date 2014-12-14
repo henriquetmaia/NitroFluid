@@ -26,14 +26,24 @@ namespace DDG
    {
       // using Fluid::ProjectionComponent;
       // ProjectionComponent d = 
-      fluid = new Fluid( &mesh, Fluid::DIV );
+    for( EdgeIter e = mesh.edges.begin(); e != mesh.edges.end(); ++e )
+    {
+      if( e->getID() == 4 ){
+        std::cout << "before init " << e->getCoef() << std::endl;
+      }
+    }
+
+      fluid = new Fluid( mesh, Fluid::DIV );
       restoreViewerState();
       initGLUT();
       initGL();
       initGLSL();
-
-      mProcess();
-      
+    for( EdgeIter e = mesh.edges.begin(); e != mesh.edges.end(); ++e )
+    {
+      if( e->getID() == 4 ){
+        std::cout << "after init: " << e->getCoef() << std::endl;
+      }
+    }
       updateDisplayList();
    
       glutMainLoop();
@@ -146,7 +156,7 @@ namespace DDG
       const Fluid::AdvectionScheme advectType = Fluid::SEMI_LAGRANGIAN;
       const Fluid::ProjectionComponent projectType = Fluid::DIV;
 
-    for( EdgeIter e = fluid->fluid_ptr->edges.begin(); e != fluid->fluid_ptr->edges.end(); ++e )
+    for( EdgeIter e = mesh.edges.begin(); e != mesh.edges.end(); ++e )
     {
       if( e->getID() == 4 ){
         std::cout << "post construct before advect: " << e->getCoef() << std::endl;
@@ -161,34 +171,34 @@ namespace DDG
          //advect velocity field
          if( advectType == Fluid::SEMI_LAGRANGIAN )
          {
-            fluid->advectVelocitySemiLagrangian( dt );
+            fluid->advectVelocitySemiLagrangian( mesh, dt );
          }
          else{
             std::cerr << "Advection Scheme not implemeted, exiting" << std::endl;
             return;
          }
          std::cout << "AFTER ADVECT: " << std::endl;
-         fluid->updateEdgeWeights( );
+         fluid->updateEdgeWeights( mesh );
 
 
          //project pressure under some criteria:
          if( projectType == Fluid::CURL ){
-            fluid->projectCurl( );
+            fluid->projectCurl( mesh );
          }
          else if( projectType == Fluid::DIV ){
-            fluid->projectDivergence( );
+            fluid->projectDivergence( mesh );
          }
          else if ( projectType == Fluid::HARMONIC ){
-            fluid->projectHarmonic( );
+            fluid->projectHarmonic( mesh );
          }
          else{
             std::cerr << "Projection Component not implemented, exiting" << std::endl;
             return;
          }
          std::cout << "AFTER PROJECT: " << std::endl;
-         fluid->updateEdgeWeights( );
+         fluid->updateEdgeWeights( mesh );
 
-         fluid->advectColorAlongField( dt );
+         fluid->advectColorAlongField( mesh, dt );
       }
 
       updateDisplayList();
@@ -210,7 +220,7 @@ namespace DDG
    
    void Viewer :: mExit( void )
    {
-      delete fluid;
+      // delete fluid;
       storeViewerState();
       exit( 0 );
    }
