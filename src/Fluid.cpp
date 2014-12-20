@@ -14,8 +14,8 @@ namespace DDG
 {
   Fluid :: Fluid( Mesh& fluid_ptr, const ProjectionComponent& projectType )
   {
-    prescribeVelocityField( fluid_ptr, 0 );
-    prescribeDensity( fluid_ptr, 3 );
+    prescribeVelocityField( fluid_ptr, 2 );
+    prescribeDensity( fluid_ptr, 0 );
     buildOperators( fluid_ptr );  
 
     // Project pressure to guarantee initially divergence free field:
@@ -104,7 +104,7 @@ namespace DDG
       case 3:
         for( VertexIter v = fluid_ptr.vertices.begin(); v != fluid_ptr.vertices.end(); ++v )
         {
-          if( v->position.y > 0.7 ){
+          if( v->position.y > 0.2 ){
             v->color = Vector( 1.0, 0.0, 0.0 );
           }
           else{
@@ -149,10 +149,10 @@ namespace DDG
 
       acquired_velocity = ( accumulated_angle.conj() * Quaternion( acquired_velocity ) * accumulated_angle ).im();
 
-cout << "accumulated_angle: " << accumulated_angle <<  " dot " << dot( acquired_velocity / acquired_velocity.norm(), starting_he->face->normal() ) << endl;
+// cout << "accumulated_angle: " << accumulated_angle <<  " dot " << dot( acquired_velocity / acquired_velocity.norm(), starting_he->face->normal() ) << endl;
 // cout << "starting_he-face " << starting_he->face->getID() << " current_he-face " << current_he->face->getID() << endl;
 
-      assert( abs( dot( acquired_velocity / acquired_velocity.norm(), starting_he->face->normal() )  ) <= 0.2/*EPSILON*/ ); // acquired_velocity lives on plane of original face 
+      // assert( abs( dot( acquired_velocity / acquired_velocity.norm(), starting_he->face->normal() )  ) <= 0.2/*EPSILON*/ ); // acquired_velocity lives on plane of original face 
 
       // Update the velocity at initial edge to be the dot product of aquired velocity with original velocity
       double advectedWeight = dot( acquired_velocity, e->vector() );
@@ -165,7 +165,6 @@ cout << "accumulated_angle: " << accumulated_angle <<  " dot " << dot( acquired_
     // Update all the face colors based on previous vertex colors
     for( FaceIter f = fluid_ptr.faces.begin(); f != fluid_ptr.faces.end(); ++f )
     {
-cout << "face: " << f->getID() << endl;
       // Get center of edge
       Vector face_midpoint = ( f->he->vertex->position + f->he->next->vertex->position + f->he->next->next->vertex->position ) / 3;
 
@@ -216,7 +215,7 @@ cout << "face: " << f->getID() << endl;
       while( h_remains > 0 ) ////what happens at mesh boundaries???
       {
           // determine which of two other edges would be intersected first
-cout << endl <<  "count: " << count <<endl;
+// cout << endl <<  "count: " << count <<endl;
           count++;
           double distance = intersectRay( final_coord, direction, current_he, h_remains, crossing_he );
 
@@ -234,7 +233,6 @@ cout << endl <<  "count: " << count <<endl;
 
             direction = ( angleChange * Quaternion( direction ) * angleChange.conj() ).im();
             direction.normalize();
-// cout << "new_dir: " << direction << endl;
             //TODO: At every crossing should I also change direction to follow new field direction at crossing (?)
               // If we do this then we are curving along the field path as we travel a distance h, removing the small timestep assumption (!)
               // Although this is more advanced/accurate, if dt is small enough this will introduce unnecessary computation
@@ -270,10 +268,6 @@ cout << endl <<  "count: " << count <<endl;
       u( e->getID() ) = fluid_ptr.edges[ e->getID() ].getCoef();
     }
 
-    // SparseMatrix<Real> A( V, V );
-    // A = ( d0.transpose() ) * star1 * d0;
-    // A.shift( 1e-15 );
-
     SparseFactor<Real> L;
     fluid_ptr.buildLaplacian();
     fluid_ptr.laplacian.shift( 1e-15 );
@@ -290,14 +284,7 @@ cout << endl <<  "count: " << count <<endl;
 
     for( EdgeIter e = fluid_ptr.edges.begin(); e != fluid_ptr.edges.end(); ++e ){
 
-      double u_new = e->getCoef() - gradP( e->getID() );
-
-// if( e->getID() == 0 ){
-//   cout << "u_new: " << u_new << endl;
-//   cout << "u_before: " << e->getCoef() << endl;
-//   cout << "gradP: " << gradP( e->getID() )<< endl;
-// }
-      
+      double u_new = e->getCoef() - gradP( e->getID() );      
       e->setCoef( u_new );
     }
 
@@ -309,14 +296,10 @@ cout << endl <<  "count: " << count <<endl;
     return;
   }   
 
-  double Fluid :: intersectRay( Vector& coordinate, const Vector& direction, const HalfEdgeIter& half_edge, const double tmax, HalfEdgeIter& crossing_half_edge )
-  // ray should never negatively intersect with halfEdge
-  // since rays are emitted internally to a triangle from the border
-  {
-
+/*
     // R = orig + dir * t,  [0 <= t]
     // L = v0 + (vf - v0) * s, [0 <= s <= 1]
-/*
+
      o
     | \
     |  \
@@ -325,6 +308,10 @@ cout << endl <<  "count: " << count <<endl;
     |     \
     p ---- q
 */
+  double Fluid :: intersectRay( Vector& coordinate, const Vector& direction, const HalfEdgeIter& half_edge, const double tmax, HalfEdgeIter& crossing_half_edge )
+  // ray should never negatively intersect with halfEdge
+  // since rays are emitted internally to a triangle from the border
+  {
 
     assert( insideTriangle( coordinate, half_edge ) );
     assert( abs( dot( half_edge->face->normal(), direction ) ) <= EPSILON ); // vector lies on the plane of the triangle face
@@ -336,7 +323,6 @@ cout << endl <<  "count: " << count <<endl;
     Vector e2 = half_edge->next->next->vector();
     Vector v2 = half_edge->next->next->vertex->position - coordinate;
     double t2 = cross( v2, e2 ).norm() / cross( direction, e2 ).norm();
-
 
     double t = 0.0;
     double s = 0.0;
@@ -353,11 +339,7 @@ cout << endl <<  "count: " << count <<endl;
       exit(EXIT_FAILURE);
     }
 
-    s = cross( coordinate - crossing_half_edge->vertex->position, direction ).norm() / cross( crossing_half_edge->vector(), direction ).norm();
-
-
     t = min( t, tmax );  
-// cout << "t: " << t << " tmax: " << tmax << " coordinate: " << coordinate << endl;
     assert( insideTriangle( coordinate, crossing_half_edge ) );
     assert( abs( dot( crossing_half_edge->face->normal(), direction ) ) <= EPSILON ); // vector lies on the plane of the triangle face
 
@@ -370,20 +352,14 @@ cout << endl <<  "count: " << count <<endl;
       assert( insideTriangle( coordinate, crossing_half_edge ) );
     }
     if( t != tmax && !insideTriangle( coordinate, crossing_half_edge->flip ) ){
-      
-      // s = ( coordinate - crossing_half_edge->vertex->position ).norm() / crossing_half_edge->vector().norm();
-      // s = dot( coordinate - crossing_half_edge->vertex->position , crossing_half_edge->vector() ) /crossing_half_edge->vector().norm() ;
-
-      // s = ((coordinate - crossing_half_edge->vertex->position ) + direction * t).norm() / crossing_half_edge->vector().norm();
-cout << "s: " << s << " t1 "<< t1 << " t2 " << t2 <<  endl;
-// cout << "direction: " << direction << " coordinate: " << coordinate << " crossing_half_edgevec: " << crossing_half_edge->vector() << " crossing_half_edge pos " << crossing_half_edge->vertex->position <<  endl;
-// cout << "v2: " << crossing_half_edge->next->vertex->position << " e2: " << crossing_half_edge->next->vector() << endl;
-// cout << "v3: " << crossing_half_edge->next->next->vertex->position << " e3: " << crossing_half_edge->next->next->vector() << endl;
+      s = ( coordinate - crossing_half_edge->vertex->position ).norm() / crossing_half_edge->vector().norm();
+      if( s > 1 ){
+        s = 0.5;
+      }
       assert( 0. <= s && s <= 1. );
       coordinate = crossing_half_edge->vertex->position + s * crossing_half_edge->vector();  
           assert( insideTriangle( coordinate, crossing_half_edge->flip ) );    
     }
-// cout << "new_Coord: " << coordinate << " direction: " << direction << endl;
     assert( insideTriangle( coordinate, crossing_half_edge ) );
 
     return t;
@@ -492,11 +468,6 @@ cout << "s: " << s << " t1 "<< t1 << " t2 " << t2 <<  endl;
     a_i = cross( coordinate - v_j, coordinate - v_k ).norm() / area;
     a_j = cross( coordinate - v_i, coordinate - v_k ).norm() / area;
     a_k = cross( coordinate - v_j, coordinate - v_i ).norm() / area;
-
-// cout << "a_i: " << a_i << endl;
-// cout << "cross: "<< cross( coordinate - v_j, coordinate - v_k ).norm()  <<endl;
-// cout << "area:" << area << endl;
-// cerr << (0. <= a_i &&  a_i <= 1.) << endl;
 
     assert( 0. <= a_i && a_i <= 1. );
     assert( 0. <= a_j && a_j <= 1. );

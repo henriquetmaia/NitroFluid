@@ -28,7 +28,7 @@ DDG_OPENGL_LIBS       = -framework OpenGL -framework GLUT
 TARGET = nitroFluid
 CC = g++
 LD = g++
-CFLAGS = -O3 -Wall -Wno-deprecated -Werror -pedantic  $(DDG_INCLUDE_PATH) -I./include -I./src # -DNDEBUG
+CFLAGS = -O3 -Wall -Wno-deprecated -Werror -pedantic  $(DDG_INCLUDE_PATH) -I./include -I./src -DNDEBUG
 LFLAGS = -O3 -Wall -Wno-deprecated -Werror -pedantic $(DDG_LIBRARY_PATH) -DNDEBUG
 LIBS = $(DDG_OPENGL_LIBS) $(DDG_SUITESPARSE_LIBS) $(DDG_BLAS_LIBS)
 

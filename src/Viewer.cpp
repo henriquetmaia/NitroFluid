@@ -142,7 +142,7 @@ namespace DDG
          exit( EXIT_FAILURE );
       }
 
-      const float dt = 0.0005;
+      const float dt = 0.005;
       const Fluid::AdvectionScheme advectType = Fluid::SEMI_LAGRANGIAN;
       const Fluid::ProjectionComponent projectType = Fluid::DIV;
       {
@@ -475,8 +475,9 @@ namespace DDG
          glVertex3dv( &endpoint[0] );
 
          // Other
-         for( double i = 0; i < 1; i += 0.1 ){
-            for( double j = 0; j < 1 - i; j += 0.1 ){
+         double increment = 0.1;
+         for( double i = 0; i < 1; i += increment ){
+            for( double j = 0; j < 1 - i; j += increment ){
                double k = 1 - i - j;
                   face_midpoint = ( f->he->vertex->position * i + f->he->next->vertex->position * j + f->he->next->next->vertex->position * k );
                   field_vel = fluid->whitneyInterpolateVelocity( face_midpoint, f->he );
