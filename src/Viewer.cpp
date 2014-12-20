@@ -25,26 +25,11 @@ namespace DDG
 
    void Viewer :: init( void )
    {
-      // using Fluid::ProjectionComponent;
-      // ProjectionComponent d = 
-    for( EdgeIter e = mesh.edges.begin(); e != mesh.edges.end(); ++e )
-    {
-      if( e->getID() == 4 ){
-        std::cout << "before init " << e->getCoef() << std::endl;
-      }
-    }
-
       fluid = new Fluid( mesh, Fluid::DIV );
       restoreViewerState();
       initGLUT();
       initGL();
       initGLSL();
-    for( EdgeIter e = mesh.edges.begin(); e != mesh.edges.end(); ++e )
-    {
-      if( e->getID() == 4 ){
-        std::cout << "after init: " << e->getCoef() << std::endl;
-      }
-    }
       updateDisplayList();
    
       glutMainLoop();
@@ -157,20 +142,13 @@ namespace DDG
          exit( EXIT_FAILURE );
       }
 
-      const float dt = 0.01;
-      // const Fluid::AdvectionScheme advectType = Fluid::SEMI_LAGRANGIAN;
-      // const Fluid::ProjectionComponent projectType = Fluid::DIV;
-
-for( EdgeIter e = mesh.edges.begin(); e != mesh.edges.end(); ++e ){
-if( e->getID() == 4 ){
-std::cout << "Before advect: " << e->getCoef() << std::endl;
-}
-}
-
+      const float dt = 0.0005;
+      const Fluid::AdvectionScheme advectType = Fluid::SEMI_LAGRANGIAN;
+      const Fluid::ProjectionComponent projectType = Fluid::DIV;
       {
          assert( dt > 0. );
          //TODO: check for interaction/input/Forces
-/*
+
          //advect velocity field
          if( advectType == Fluid::SEMI_LAGRANGIAN )
          {
@@ -180,7 +158,6 @@ std::cout << "Before advect: " << e->getCoef() << std::endl;
             std::cerr << "Advection Scheme not implemeted, exiting" << std::endl;
             return;
          }
-         std::cout << "AFTER ADVECT: " << std::endl;
          fluid->updateEdgeWeights( mesh );
 
 
@@ -198,9 +175,8 @@ std::cout << "Before advect: " << e->getCoef() << std::endl;
             std::cerr << "Projection Component not implemented, exiting" << std::endl;
             return;
          }
-         std::cout << "AFTER PROJECT: " << std::endl;
          fluid->updateEdgeWeights( mesh );
-*/
+
          fluid->advectColorAlongField( mesh, dt );
       }
 
@@ -448,12 +424,7 @@ std::cout << "Before advect: " << e->getCoef() << std::endl;
             }
             while( h != f->he );
             color = color / 3;
-            // color.normalize();
             glColor3f( color.x, color.y, color.z );
-            if( f->getID() == 4 ){
-               std::cout << "F4c: " << f->color <<std::endl;
-               std::cout << "final_color: " << color <<std::endl;            
-            }
          }
 
          glBegin( GL_POLYGON );
@@ -494,45 +465,32 @@ std::cout << "Before advect: " << e->getCoef() << std::endl;
       glBegin( GL_LINES );
       for( FaceCIter f  = mesh.faces.begin(); f != mesh.faces.end(); ++f )
       {
+         // Center
          Vector face_midpoint = ( f->he->vertex->position + f->he->next->vertex->position + f->he->next->next->vertex->position ) / 3;
          Vector field_vel = fluid->whitneyInterpolateVelocity( face_midpoint, f->he );
-         field_vel *= 100 * f->area();
+         field_vel *= 4/3 * f->area();
 
          Vector endpoint = face_midpoint + field_vel;
          glVertex3dv( &face_midpoint[0] );
          glVertex3dv( &endpoint[0] );
 
+         // Other
+         for( double i = 0; i < 1; i += 0.1 ){
+            for( double j = 0; j < 1 - i; j += 0.1 ){
+               double k = 1 - i - j;
+                  face_midpoint = ( f->he->vertex->position * i + f->he->next->vertex->position * j + f->he->next->next->vertex->position * k );
+                  field_vel = fluid->whitneyInterpolateVelocity( face_midpoint, f->he );
+                  field_vel *= 4/3 * f->area();
 
-      face_midpoint = ( f->he->vertex->position * 0.8 + f->he->next->vertex->position * 0.1 + f->he->next->next->vertex->position * 0.1 );
-      field_vel = fluid->whitneyInterpolateVelocity( face_midpoint, f->he );
-      field_vel *= 100 * f->area();
-
-      endpoint = face_midpoint + field_vel;
-      glVertex3dv( &face_midpoint[0] );
-      glVertex3dv( &endpoint[0] );
-
-      face_midpoint = ( f->he->vertex->position * 0.1 + f->he->next->vertex->position * 0.8 + f->he->next->next->vertex->position * 0.1 );
-      field_vel = fluid->whitneyInterpolateVelocity( face_midpoint, f->he );
-      field_vel *= 100 * f->area();
-
-      endpoint = face_midpoint + field_vel;
-      glVertex3dv( &face_midpoint[0] );
-      glVertex3dv( &endpoint[0] );
-
-      face_midpoint = ( f->he->vertex->position * 0.1 + f->he->next->vertex->position * 0.1 + f->he->next->next->vertex->position * 0.8 );
-      field_vel = fluid->whitneyInterpolateVelocity( face_midpoint, f->he );
-      field_vel *= 100 * f->area();
-
-      endpoint = face_midpoint + field_vel;
-      glVertex3dv( &face_midpoint[0] );
-      glVertex3dv( &endpoint[0] );
-
+                  endpoint = face_midpoint + field_vel;
+                  glVertex3dv( &face_midpoint[0] );
+                  glVertex3dv( &endpoint[0] );
+            }
+         }
 
       }
 
-      
       glEnd();
-
       glPopAttrib();
    }
 
