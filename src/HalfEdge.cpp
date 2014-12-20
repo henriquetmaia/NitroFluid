@@ -15,5 +15,20 @@ namespace DDG
 		return cosTheta/sinTheta;
 	}
 
+	double HalfEdge::weight() const
+	{
+		double w = edge->getCoef();
+		if( edge->he != flip->flip ){
+			w *= -1;
+		}
+		return w;
+	}
+
+    Vector HalfEdge::vector() const
+    { // tip - tail
+      return flip->vertex->position - vertex->position;
+    }
+
+
 }
 

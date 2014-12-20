@@ -21,6 +21,12 @@ namespace DDG
          double cotan() const;
          // the cotangent of the angle across from this halfedge
 
+         Vector vector() const;
+         // the vector formed by the edge of this halfedge to the next
+
+         double weight() const;
+         // the correctly signed weight associated with the edge along the he direction
+
          HalfEdgeIter next;
          // points to the next halfedge around the current face
 

@@ -36,6 +36,7 @@ namespace DDG
          static void updateDisplayList( void );
          static void drawPolygons( void );
          static void drawWireframe( void );
+         static void drawVectorField( void );
          static void drawIsolatedVertices( void );
          
          // GLUT callbacks
@@ -56,6 +57,7 @@ namespace DDG
          static void mSmoothShaded( void );
          static void mTextured( void );
          static void mWireframe( void );
+         static void mVectorField( void );
          static void mZoomIn( void );
          static void mZoomOut( void );
          static void mScreenshot( void );
@@ -69,6 +71,7 @@ namespace DDG
             menuExit,
             menuSmoothShaded,
             menuWireframe,
+            menuVectorField,
             menuZoomIn,
             menuZoomOut,
             menuScreenshot
@@ -78,7 +81,8 @@ namespace DDG
          enum RenderMode
          {
             renderShaded = 0,
-            renderWireframe = 1
+            renderWireframe = 1,
+            renderVectorField = 2
          };
 
          static RenderMode mode;

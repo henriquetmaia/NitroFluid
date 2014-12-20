@@ -14,28 +14,27 @@ namespace DDG
   Fluid :: Fluid( Mesh& fluid_ptr, const ProjectionComponent& projectType )
   {
     prescribeVelocityField( fluid_ptr, 1 );
-    prescribeDensity( fluid_ptr, 1 );
+    prescribeDensity( fluid_ptr, 2 );
     buildOperators( fluid_ptr );  
 
-    // SparseMatrix<Real> d = d1 * d0;
-    // std::cout << "d: " << d1 * d0 << std::endl;
-    // std::cout << "*: " << star1 <<std::endl;
+    // // Project pressure to guarantee initially divergence free field:
+    // if( projectType == CURL ){
+    //   projectCurl( fluid_ptr );
+    // }
+    // else if( projectType == DIV ){
+    //   projectDivergence( fluid_ptr );
+    // }
+    // else if ( projectType == HARMONIC ){
+    //   projectHarmonic( fluid_ptr );
+    // }
+    // else{
+    //   std::cerr << "Projection Component not implemented, exiting" << std::endl;
+    //   return;
+    // }
+    // std::cout << "4th edge0: " << fluid_ptr.edges[4].ref_coef <<std::endl;
+    // updateEdgeWeights( fluid_ptr );
 
-    // Project pressure to guarantee initially divergence free field:
-    if( projectType == CURL ){
-      projectCurl( fluid_ptr );
-    }
-    else if( projectType == DIV ){
-      projectDivergence( fluid_ptr );
-    }
-    else if ( projectType == HARMONIC ){
-      projectHarmonic( fluid_ptr );
-    }
-    else{
-      std::cerr << "Projection Component not implemented, exiting" << std::endl;
-      return;
-    }
-    updateEdgeWeights( fluid_ptr );
+    // std::cout << "4th edge: " << fluid_ptr.edges[4].ref_coef <<std::endl;
   }
 
   Fluid :: ~Fluid( void )
@@ -45,22 +44,34 @@ namespace DDG
   {	
     switch ( vf )
     {
-      case 0:
+      case 0:{
         for( EdgeIter e = fluid_ptr.edges.begin(); e != fluid_ptr.edges.end(); ++e )
         {
-          e->setCoef( 8.0 );
+          double constant = 1.0;
+          e->setCoef( constant );
+          e->updateRefCoef();
         }		
         break; 
-      case 1:
-        Vector x( 8, 0, 0 );
+      }
+      case 1:{
+        Vector x( 1, 0, 0 );
         for( EdgeIter e = fluid_ptr.edges.begin(); e != fluid_ptr.edges.end(); ++e )
         {
-      	  Vector v = e->he->flip->vertex->position - e->he->vertex->position;
-          double weight = dot( v, x );
+          double weight = dot( e->vector(), x );
           e->setCoef( weight );
           e->updateRefCoef();
         }
-	break;
+      	break;
+      }
+      case 2:{
+        for( EdgeIter e = fluid_ptr.edges.begin(); e != fluid_ptr.edges.end(); ++e )
+        {
+          double random = (double) rand() / RAND_MAX ;
+          e->setCoef( random );
+          e->updateRefCoef();
+        }   
+        break; 
+      }
     }    
   }
 
@@ -79,8 +90,18 @@ namespace DDG
         {
           v->color = (v->position + Vector(1.0,1.0,1.0)) / 2.0;
         }
-      	// texture map???
       	break;
+      case 2:
+        for( VertexIter v = fluid_ptr.vertices.begin(); v != fluid_ptr.vertices.end(); ++v )
+        {
+          if( (int) ( v->position.x * 15 ) % 2 == 0 ){
+            v->color = Vector( 0.25, 0.25, 0.25 );// Vector( 1., 1., 1. ); // ( 0.549, 0.839, 1. );         
+          }
+          else{
+            v->color = Vector( 0.75, 0.75, 0.75);// Vector( 0., 0., 0. ); // ( 1., .4, 0 ); 
+          }
+        }  
+        break;
         // default:
         // break;
     }
@@ -98,31 +119,36 @@ namespace DDG
     for( EdgeIter e = fluid_ptr.edges.begin(); e != fluid_ptr.edges.end(); ++e )
     {
       // Get center of edge
-      Vector edge_vec = e->he->flip->vertex->position - e->he->vertex->position;
-      Vector edge_midpoint = e->he->vertex->position + ( edge_vec / 2 );
+      Vector edge_midpoint = e->he->vertex->position + ( e->vector() / 2 );
 
       // Integrate the velocity along the edge (get velocity at edge midpoint)
       // by interpolating one of the two bordering triangle faces
       HalfEdgeIter current_he;
       Vector original_velocity = whitneyInterpolateVelocity( edge_midpoint, e, current_he );
 
-      Vector final_coord;
-      Quaternion accumulated_angle;
-      backtrackAlongField( dt, edge_midpoint, original_velocity, current_he, final_coord, accumulated_angle );
+      Vector final_coord = edge_midpoint;
+      Quaternion accumulated_angle(1);
+      backtrackAlongField( dt, original_velocity, current_he, final_coord, accumulated_angle );
 
       // Compute interpolated velocity at this point
       Vector acquired_velocity = whitneyInterpolateVelocity( final_coord, current_he ); // current_he is now inside triangle face we care about
 
+      if( e->getID() == 4 ){
+        std::cout << "whitney_velocity: " << acquired_velocity << std::endl;
+        std::cout << "accumulated_angle: " << accumulated_angle << std::endl;
+      }
+
       // Parallel transport the velocity back to the original face (rotate direction vector back by accumulated angle)
       acquired_velocity = ( accumulated_angle.conj() * Quaternion( acquired_velocity ) * accumulated_angle ).im();
 
-      assert( std::abs( dot( acquired_velocity, starting_he->face->normal() )  ) <= EPSILON ); // acquired_velocity lives on plane of original face 
+      assert( std::abs( dot( acquired_velocity, e->he->face->normal() )  ) <= EPSILON ); // acquired_velocity lives on plane of original face 
 
       // Update the velocity at initial edge to be the dot product of aquired velocity with original velocity
-      double advectedWeight = dot( acquired_velocity, edge_vec );
+      double advectedWeight = dot( acquired_velocity, e->vector() );
 
 
       if( e->getID() == 4 ){
+        std::cout << "acquired_velocity: " << acquired_velocity << " edge_vec: " << e->vector() << std::endl;
         std::cout << "before: " << e->getCoef() <<" advectedWeight: " << advectedWeight << std::endl;
       }
       e->setCoef( advectedWeight );
@@ -140,10 +166,12 @@ namespace DDG
       Vector original_velocity = whitneyInterpolateVelocity( face_midpoint, f->he ); // returns a velocity
 
       HalfEdgeIter final_he = f->he;
-      Vector final_coord;
-      Quaternion acc_angl;
+      Vector final_coord = face_midpoint;
+      Quaternion acc_angl(1);
 
-      backtrackAlongField( dt, face_midpoint, original_velocity, final_he, final_coord, acc_angl );
+      assert( insideTriangle( final_coord, final_he ) );
+      backtrackAlongField( dt, original_velocity, final_he, final_coord, acc_angl );
+      assert( insideTriangle( final_coord, final_he ) && "On way out" );
 
       Vector acquired_color = barycentricInterpolateColors( final_coord, final_he );
 
@@ -166,38 +194,49 @@ namespace DDG
     }
   }
 
-  void Fluid :: backtrackAlongField( const float& dt, const Vector start_pt, const Vector& start_vel, HalfEdgeIter& current_he, Vector& final_coord, Quaternion& accumulated_angle )
+  void Fluid :: backtrackAlongField( const float& dt, const Vector& start_vel, HalfEdgeIter& current_he, Vector& final_coord, Quaternion& accumulated_angle )
   {
       // Walk along this direction for distance [ h = v*dt ]
-      final_coord = start_pt;
+      assert( accumulated_angle.re() == 1. && accumulated_angle.im().norm() <= EPSILON );
 
       // Keep track of how much distance is left and the direction you are going (which must be tangent to the surface)
       // This assumes for small timesteps velocity is constant and so we step straight in one direction
       double h_remains = start_vel.norm() * dt;
       Vector direction = -start_vel; direction.normalize();
+      assert( std::abs( dot( current_he->face->normal(), direction ) ) <= EPSILON ); // vector lies on the plane of the triangle face
+
+      unsigned count = 0;
+      HalfEdgeIter crossing_he;
       while( h_remains > 0 ) ////what happens at mesh boundaries???
       {
           // determine which of two other edges would be intersected first
-
-          HalfEdgeIter crossing_he;
+          std::cout << std::endl <<  "count: " << count <<std::endl;
+          count++;
           double distance = intersectRay( final_coord, direction, current_he, h_remains, crossing_he );
 
           if( h_remains > distance )
           // Flip to the next face, continue to travel remaider of h
           {
-            /* edge_crossing_coord += distance * direction; */
-
             double theta = acos( dot( crossing_he->flip->face->normal(), current_he->face->normal() ) );
-            Quaternion angleChange = Quaternion( cos(theta/2), sin(theta/2)*direction);
+            Vector rot_axis = cross( current_he->face->normal(), crossing_he->flip->face->normal() );
+            rot_axis.normalize();
+
+            Quaternion angleChange = Quaternion( cos(theta/2), sin(theta/2) * rot_axis );
+            std::cout << "orig_accum_angle: " << accumulated_angle << " theta: " << theta << " angleChange: " << angleChange << std::endl;
             accumulated_angle = accumulated_angle * angleChange;
+            std::cout << "accumulated_angle_mult: " << accumulated_angle << std::endl;
 
             direction = ( angleChange * Quaternion( direction ) * angleChange.conj() ).im();
+            std::cout << "new_dir: " << direction << std::endl;
             //TODO: At every crossing should I also change direction to follow new field direction at crossing (?)
               // If we do this then we are curving along the field path as we travel a distance h, removing the small timestep assumption (!)
               // Although this is more advanced/accurate, if dt is small enough this will introduce unnecessary computation
               // This can be done simply by recomputing the velocity (WhitneyInterp) at edge crossings everytime instead of turning/curving the direction vec 
 
             current_he = crossing_he->flip;
+            assert( std::abs( dot( current_he->face->normal(), direction ) ) <= EPSILON ); // vector lies on the plane of the triangle face
+            assert( insideTriangle( final_coord, current_he ) );
+
           }
 
           h_remains -= distance;
@@ -219,16 +258,20 @@ namespace DDG
     // retrive vector of edge weights ( u )      
     DenseMatrix<Real> u = DenseMatrix<Real>(E, 1);
     for( EdgeIter e = fluid_ptr.edges.begin(); e != fluid_ptr.edges.end(); ++e ){
-      assert( 0 <= e->index && e->index < E );
+
+      assert( 0 <= e->getID() && e->getID() < E );
       u( e->getID() ) = fluid_ptr.edges[ e->getID() ].getCoef();
     }
 
-    SparseMatrix<Real> A( V, V );
-    A = ( d0.transpose() ) * star1 * d0;
-    A.shift( 1e-15 );
+    // SparseMatrix<Real> A( V, V );
+    // A = ( d0.transpose() ) * star1 * d0;
+    // A.shift( 1e-15 );
 
     SparseFactor<Real> L;
-    L.build( A );
+    fluid_ptr.buildLaplacian();
+    fluid_ptr.laplacian.shift( 1e-15 );
+    L.build( fluid_ptr.laplacian );
+
     DenseMatrix<Real> divU( V, 1 );
     divU = ( d0.transpose() ) * star1 * u;
 
@@ -239,19 +282,22 @@ namespace DDG
     gradP = d0 * p;
 
     for( EdgeIter e = fluid_ptr.edges.begin(); e != fluid_ptr.edges.end(); ++e ){
-      double u_new = e->getCoef() - gradP( e->getID() );
-            if( e->getID() == 4 ){
-      std::cout << "getCoef before u_new: " << e->getCoef() << std::endl;
-            }
-      e->setCoef( u_new );
-        if( e->getID() == 4 ){
-            std::cout << "getCoef after u_new: " << e->getCoef() << std::endl;
-    }
-    } 
 
-    // std::cout << "A: " << A << std::endl;
-    // std::cout << "divU: " << divU << std::endl;
-    // std::cout << "gradP: " << gradP << std::endl;
+      double u_new = e->getCoef() - gradP( e->getID() );
+
+      if( e->getID() == 4 ){
+        std::cout << "u_new: " << u_new << std::endl;
+        std::cout << "getCoef before u_new: " << e->getCoef() << std::endl;
+        std::cout << "gradP: " << gradP( e->getID() )<< std::endl;
+      }
+      
+      e->setCoef( u_new );
+
+      if( e->getID() == 4 ){
+          std::cout << "mod_coef after u_new: " << e->mod_coef << std::endl;
+          std::cout << "ref_coef after u_new: " << e->getCoef() << std::endl;
+      }
+    }
 
   }          
 
@@ -266,11 +312,8 @@ namespace DDG
   // since rays are emitted internally to a triangle from the border
   {
 
-    //  !!! cannot assume ray is shot from center of edge or any edge at all,
-    // arbitrary ray, that lives on the face of triangle, intersect with edges of triangle
-    // use 'half_edge' as handle to this triangle,
-    // coordinate and direction give you the ray,
-    // return t, update coordinate, and update crossing_he 
+    assert( insideTriangle( coordinate, half_edge ) );
+    assert( std::abs( dot( half_edge->face->normal(), direction ) ) <= EPSILON ); // vector lies on the plane of the triangle face
 
     Vector e1 = half_edge->flip->vertex->position - half_edge->vertex->position;
     Vector v1 = half_edge->vertex->position - coordinate;
@@ -284,14 +327,26 @@ namespace DDG
     if ( t1 < t2 ) {
       t = t1;
       crossing_half_edge = half_edge->next;
-    } else {
+    } else if( t2 < t1 ){
     	t = t2;
     	crossing_half_edge = half_edge->next->next;
     }
 
     t = std::min( t, tmax );  
- 
-    coordinate = coordinate + direction * t; 
+    std::cout << "t: " << t << " tmax: " << tmax << " coordinate: " << coordinate << std::endl;
+    assert( insideTriangle( coordinate, crossing_half_edge ) );
+    assert( std::abs( dot( crossing_half_edge->face->normal(), direction ) ) <= EPSILON ); // vector lies on the plane of the triangle face
+
+    if( !insideTriangle( coordinate + direction * t, crossing_half_edge ) ){
+      coordinate = coordinate - direction * t;
+    }
+    else{
+      coordinate = coordinate + direction * t;
+    }
+
+    std::cout << "new_Coord: " << coordinate << " direction: " << direction << std::endl;
+    assert( insideTriangle( coordinate, crossing_half_edge ) );
+
     return t;
   }
 
@@ -305,14 +360,16 @@ namespace DDG
 
   Vector Fluid :: whitneyInterpolateVelocity( const Vector& coordinate, const EdgeIter& edge, HalfEdgeIter& chosen_he )
   {
-    assert( coordinate lies on plane created by the edges neighboring triangle faces );
+    // assert( coordinate lies on plane created by the edges neighboring triangle faces );
+
+    assert( insideTriangle( coordinate, edge->he ) );
 
     // Calls whitneyInterpolate( coordinate, HALF_EDGE ) twice for neighboring triangles of edge
     Vector left = whitneyInterpolateVelocity( coordinate, edge->he );
     Vector right = whitneyInterpolateVelocity( coordinate, edge->he->flip );
 
     // check if edge_wise components of vectors are the same
-    assert( dot( left, ( e->he->flip->vertex->position - e->he->vertex->position ) ) == dot( right, ( e->he->flip->vertex->position - e->he->vertex->position ) ) );
+    assert( dot( left, edge->vector() ) == dot( right, edge->vector() ) );
 
     // averages the flux/normal components to the edge and keeps the same edgewise component?
     // need to take the averaged component and project it down onto the face that dominates (otherwise the edge_normal component is off the surface)
@@ -329,6 +386,8 @@ namespace DDG
       interp_vec = right;
     }
 
+    assert( insideTriangle( coordinate, chosen_he ) );
+
     return interp_vec;
   }
 
@@ -338,34 +397,69 @@ namespace DDG
     Vector i = he->vertex->position;
     Vector j = he->next->vertex->position;
     Vector k = he->next->next->vertex->position;
-    BarycentricWeights( coordinate, i, j, k, a_i, a_j, a_k ); // Already asserts coordinate lies on triangle face
+    BarycentricWeights( coordinate, i, j, k, a_i, a_j, a_k );
 
     Vector color;
     color += a_i * he->vertex->color;
     color += a_j * he->next->vertex->color;
     color += a_k * he->next->next->vertex->color;
+
+// Debug
+    double a = he->vertex->color.x;
+    double b = he->next->vertex->color.x;
+    double c = he->next->next->vertex->color.x;
+    double max_c = std::max( std::max( a, b ), c );
+    double min_c = std::min( std::min( a, b ), c );
+    if( color.x < min_c || color.x > max_c ){
+      std::cout << "a_i: " << a_i << " a_j " << a_j << " a_k " << a_k << " sum: " << a_i + a_j + a_k << std::endl;
+      std::cerr << "Failed convex color assertion" << std::endl;
+      std::exit(EXIT_FAILURE);
+    }
+// Remove later
+
     return color;
   }
 
+  bool Fluid :: insideTriangle( const Vector coordinate, const HalfEdgeIter he )
+  {
+    Vector v_i = he->vertex->position;
+    Vector v_j = he->next->vertex->position;
+    Vector v_k = he->next->next->vertex->position;
+
+    double area = cross( v_i - v_j, v_i - v_k ).norm();
+    double a_i = cross( coordinate - v_j, coordinate - v_k ).norm() / area;
+    double a_j = cross( coordinate - v_i, coordinate - v_k ).norm() / area;
+    double a_k = cross( coordinate - v_j, coordinate - v_i ).norm() / area;
+
+    if( 0. <= a_i && a_i <= 1. && 
+        0. <= a_j && a_j <= 1. &&
+        0. <= a_k && a_k <= 1. &&
+        a_i + a_j + a_k - 1. <= EPSILON )
+    {
+      return true;
+    }
+    std::cerr << "Failing Inside Triangle:: a_i: " << a_i << " a_j: " <<a_j << " a_k: " << a_k << " sum: " << a_i + a_j + a_k  << std::endl;
+    return false;
+  }
+
+
   void Fluid :: BarycentricWeights( const Vector coordinate, const Vector v_i, const Vector v_j, const Vector v_k, float &a_i, float &a_j, float &a_k)
   {
-    Vector v0 = v_j - v_i;
-    Vector v1 = v_k - v_i;
-    Vector v2 = coordinate - v_i;
 
-    float d00 = dot( v0, v0 );
-    float d01 = dot( v0, v1 );
-    float d11 = dot( v1, v1 );
-    float d20 = dot( v2, v0 );
-    float d21 = dot( v2, v1 );
-    float denom = d00 * d11 - d01 * d01;
-    a_j = (d11 * d20 - d01 * d21) / denom;
-    a_k = (d00 * d21 - d01 * d20) / denom;
-    a_i = 1.0f - a_j - a_k;
+    double area = cross( v_i - v_j, v_i - v_k ).norm();
+    a_i = cross( coordinate - v_j, coordinate - v_k ).norm() / area;
+    a_j = cross( coordinate - v_i, coordinate - v_k ).norm() / area;
+    a_k = cross( coordinate - v_j, coordinate - v_i ).norm() / area;
 
-    assert( 0. <= a_i && a_i <= 1. && "Coordinate lies outside of triangle!" );
-    assert( 0. <= a_j && a_j <= 1. && "Coordinate lies outside of triangle!" );
-    assert( 0. <= a_k && a_k <= 1. && "Coordinate lies outside of triangle!" );
+// std::cout << "a_i: " << a_i << std::endl;
+// std::cout << "cross: "<< cross( coordinate - v_j, coordinate - v_k ).norm()  <<std::endl;
+// std::cout << "area:" << area << std::endl;
+// std::cerr << (0. <= a_i &&  a_i <= 1.) << std::endl;
+
+    assert( 0. <= a_i && a_i <= 1. );
+    assert( 0. <= a_j && a_j <= 1. );
+    assert( 0. <= a_k && a_k <= 1. );
+    assert(  a_i + a_j + a_k == 1. );
   }
 
   /*
@@ -408,21 +502,18 @@ namespace DDG
     Vector k = he->next->next->vertex->position;
     BarycentricWeights( coordinate, i, j, k, a_i, a_j, a_k ); // Already asserts coordinate lies on triangle face
 
-    // Compute Perpendicular Edge Vectors:
-    double theta = M_PI / 2;
-    Quaternion Q_perp = Quaternion( cos(theta/2), sin(theta/2) * he->face->normal() );
-    Vector P_ij = ( Q_perp * ( j - i ) * Q_perp.conj() ).im();
-    Vector P_jk = ( Q_perp * ( k - j ) * Q_perp.conj() ).im();
-    Vector P_ki = ( Q_perp * ( i - k ) * Q_perp.conj() ).im();
+    Vector P_ij = cross( he->face->normal(), j - i );
+    Vector P_jk = cross( he->face->normal(), k - j );
+    Vector P_ki = cross( he->face->normal(), i - k );
 
     assert( std::abs( dot( P_ij, ( j - i ) ) ) <= EPSILON );
     assert( std::abs( dot( P_jk, ( k - j ) ) ) <= EPSILON );
     assert( std::abs( dot( P_ki, ( i - k ) ) ) <= EPSILON );
 
     //Retrieve edge weights
-    double C_ij = he->edge->getCoef();
-    double C_jk = he->next->edge->getCoef();
-    double C_ki = he->next->next->edge->getCoef();
+    double C_ij = he->weight();
+    double C_jk = he->next->weight();
+    double C_ki = he->next->next->weight();
 
     // Return Interpolated Vector 
     Vector interp_vec = ( 
@@ -430,7 +521,9 @@ namespace DDG
                           ( C_ij * a_i  -  C_jk * a_k ) * P_ki +
                           ( C_jk * a_j  -  C_ki * a_i ) * P_ij
                         ) / ( 2 * he->face->area() );
+
     assert( std::abs( dot( he->face->normal(), interp_vec ) ) <= EPSILON ); // vector lies on the plane of the triangle face
+
     return interp_vec;
   }
 

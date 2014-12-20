@@ -25,10 +25,10 @@ DDG_OPENGL_LIBS       = -framework OpenGL -framework GLUT
 
 #######################################################################################################
 
-TARGET = ddg
+TARGET = nitroFluid
 CC = g++
 LD = g++
-CFLAGS = -O3 -Wall -Wno-deprecated -Werror -pedantic  $(DDG_INCLUDE_PATH) -I./include -I./src -DNDEBUG
+CFLAGS = -O3 -Wall -Wno-deprecated -Werror -pedantic  $(DDG_INCLUDE_PATH) -I./include -I./src # -DNDEBUG
 LFLAGS = -O3 -Wall -Wno-deprecated -Werror -pedantic $(DDG_LIBRARY_PATH) -DNDEBUG
 LIBS = $(DDG_OPENGL_LIBS) $(DDG_SUITESPARSE_LIBS) $(DDG_BLAS_LIBS)
 
@@ -50,7 +50,7 @@ obj/Complex.o: src/Complex.cpp include/Complex.h
 obj/DenseMatrix.o: src/DenseMatrix.cpp include/DenseMatrix.h include/Types.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Vector.h include/Complex.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Utility.h 
 	$(CC) $(CFLAGS) -c src/DenseMatrix.cpp -o obj/DenseMatrix.o
 
-obj/Edge.o: src/Edge.cpp include/Edge.h include/Types.h include/Mesh.h include/HalfEdge.h include/Vector.h include/Vertex.h include/Face.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Complex.h include/DenseMatrix.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Utility.h 
+obj/Edge.o: src/Edge.cpp include/Edge.h include/Types.h include/Vector.h include/HalfEdge.h include/Vertex.h include/Mesh.h include/Face.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Complex.h include/DenseMatrix.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Utility.h 
 	$(CC) $(CFLAGS) -c src/Edge.cpp -o obj/Edge.o
 
 obj/Face.o: src/Face.cpp include/Face.h include/Types.h include/Vector.h include/Mesh.h include/HalfEdge.h include/Vertex.h include/Edge.h include/SparseMatrix.h src/SparseMatrix.inl include/Real.h include/Complex.h include/DenseMatrix.h src/DenseMatrix.inl include/LinearContext.h include/Quaternion.h include/Utility.h 

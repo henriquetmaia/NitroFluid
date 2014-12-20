@@ -54,8 +54,9 @@ namespace DDG
 
          void updateEdgeWeights( Mesh& fluid_ptr );
 
-        // Mesh fluid_ptr;
+        // Mesh* fluid_ptr;
 
+         static Vector whitneyInterpolateVelocity( const Vector& coordinate, const HalfEdgeIter& he );
 
       protected:
 
@@ -70,18 +71,18 @@ namespace DDG
 
          void buildOperators ( Mesh& fluid_ptr );
 
-         void backtrackAlongField( const float& dt, const Vector start_pt, const Vector& start_vel, HalfEdgeIter& current_he, Vector& final_coord, Quaternion& accumulated_angle );
+         void backtrackAlongField( const float& dt, const Vector& start_vel, HalfEdgeIter& current_he, Vector& final_coord, Quaternion& accumulated_angle );
 
          // Static helper functions:
          static double intersectRay( Vector& coordinate, const Vector& direction, const HalfEdgeIter& half_edge, const double tmax, HalfEdgeIter& crossing_half_edge );
 
          static Vector rotateAcrossBy( const Vector& direction, const Vector& axis, const double& angle );
 
+         static bool insideTriangle( const Vector coordinate, const HalfEdgeIter he );
+
          static void BarycentricWeights( const Vector coordinate, const Vector v_i, const Vector v_j, const Vector v_k, float &a_i, float &a_j, float &a_k );
 
          static Vector whitneyInterpolateVelocity( const Vector& coordinate, const EdgeIter& edge, HalfEdgeIter& chosen_he );
-
-         static Vector whitneyInterpolateVelocity( const Vector& coordinate, const HalfEdgeIter& he );
 
          static Vector barycentricInterpolateColors( const Vector& coordinate, const HalfEdgeIter& half_edge );
 

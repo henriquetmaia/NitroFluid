@@ -21,7 +21,8 @@ namespace DDG
    Camera Viewer::camera;
    Shader Viewer::shader;
    Fluid* fluid;
-   
+   bool color_markers = false;
+
    void Viewer :: init( void )
    {
       // using Fluid::ProjectionComponent;
@@ -78,6 +79,7 @@ namespace DDG
       glutSetMenu( viewMenu );
       glutAddMenuEntry( "[s] Smooth Shaded",  menuSmoothShaded );
       glutAddMenuEntry( "[f] Wireframe",      menuWireframe    );
+      glutAddMenuEntry( "[v] Vector Field",   menuVectorField  );
       glutAddMenuEntry( "[↑] Zoom In",    menuZoomIn       );
       glutAddMenuEntry( "[↓] Zoom Out",   menuZoomOut      );
 
@@ -132,6 +134,9 @@ namespace DDG
          case( menuWireframe ):
             mWireframe();
             break;
+         case( menuVectorField ):
+            mVectorField();
+            break;
          case( menuZoomIn ):
             mZoomIn();
             break;
@@ -152,22 +157,20 @@ namespace DDG
          exit( EXIT_FAILURE );
       }
 
-      const float dt = 20.0;
-      const Fluid::AdvectionScheme advectType = Fluid::SEMI_LAGRANGIAN;
-      const Fluid::ProjectionComponent projectType = Fluid::DIV;
+      const float dt = 0.01;
+      // const Fluid::AdvectionScheme advectType = Fluid::SEMI_LAGRANGIAN;
+      // const Fluid::ProjectionComponent projectType = Fluid::DIV;
 
-    for( EdgeIter e = mesh.edges.begin(); e != mesh.edges.end(); ++e )
-    {
-      if( e->getID() == 4 ){
-        std::cout << "post construct before advect: " << e->getCoef() << std::endl;
-      }
-    }
+for( EdgeIter e = mesh.edges.begin(); e != mesh.edges.end(); ++e ){
+if( e->getID() == 4 ){
+std::cout << "Before advect: " << e->getCoef() << std::endl;
+}
+}
 
       {
          assert( dt > 0. );
-         std::cout << "AFTER constructor " << std::endl;
          //TODO: check for interaction/input/Forces
-
+/*
          //advect velocity field
          if( advectType == Fluid::SEMI_LAGRANGIAN )
          {
@@ -197,7 +200,7 @@ namespace DDG
          }
          std::cout << "AFTER PROJECT: " << std::endl;
          fluid->updateEdgeWeights( mesh );
-
+*/
          fluid->advectColorAlongField( mesh, dt );
       }
 
@@ -228,6 +231,12 @@ namespace DDG
    void Viewer :: mSmoothShaded( void )
    {
       mode = renderShaded;
+      updateDisplayList();
+   }
+
+   void Viewer :: mVectorField( void )
+   {
+      mode = renderVectorField;
       updateDisplayList();
    }
    
@@ -278,9 +287,16 @@ namespace DDG
          case 'f':
             mWireframe();
             break;
+         case 'v':
+            mVectorField();
+            break;
          case 'w':
             mWriteMesh();
             break;
+         case 'c':
+            color_markers = !color_markers;
+            updateDisplayList();
+            break;            
          case 'r':
             mResetMesh();
             break;
@@ -290,12 +306,11 @@ namespace DDG
          case ' ':
             mProcess();
             break;
-         case 'v':
-// fluid->prescribeVelocityField( 1 );	
-            break;
          case 'd':
+// fluid->prescribeVelocityField( 1 ); 
 //   fluid->prescribeDensity( 1 );	
-            break;	
+            break;
+         case 'q':
          case 27:
             mExit();
             break;
@@ -399,6 +414,11 @@ namespace DDG
          shader.disable();
          drawWireframe();
       }
+      else if( mode == renderVectorField )
+      {
+         shader.disable();
+         drawVectorField();
+      }
 
       drawIsolatedVertices();
 
@@ -408,7 +428,7 @@ namespace DDG
    void Viewer :: drawPolygons( void )
    {
       // Default color
-      glColor3f( 1., .4, 0 );
+      glColor3f( 0.549, 0.839, 1. );
 
       for( FaceCIter f  = mesh.faces.begin();
                      f != mesh.faces.end();
@@ -416,31 +436,28 @@ namespace DDG
       {
          if( f->isBoundary() ) continue;
 
-         //INTERP_COLOR
-         Vector color;
-         HalfEdgeCIter hec = f->he;
-         do
+         if( color_markers )
          {
-            // color += hec->vertex->color;
-            Vector edge = hec->vertex->position - hec->flip->vertex->position;
-            edge.normalize();
-            edge *= hec->edge->getCoef();
-            // std::cout << "coef: " << hec->edge->getCoef() <<std::endl;
-            color += edge;
-            hec = hec->next;
-         }
-         while( hec != f->he );
-         // color = color / 3;
-         color.normalize();
-         glColor3f( color.x, color.y, color.z );
-
-         if( f->getID() == 4 ){
-            std::cout << "F4c: " << f->color <<std::endl;
-            std::cout << "V4c: " << color <<std::endl;            
+            //INTERP_COLOR
+            Vector color;
+            HalfEdgeCIter h = f->he;
+            do
+            {
+               color += h->vertex->color;
+               h = h->next;
+            }
+            while( h != f->he );
+            color = color / 3;
+            // color.normalize();
+            glColor3f( color.x, color.y, color.z );
+            if( f->getID() == 4 ){
+               std::cout << "F4c: " << f->color <<std::endl;
+               std::cout << "final_color: " << color <<std::endl;            
+            }
          }
 
          glBegin( GL_POLYGON );
-         if( mode == renderWireframe )
+         if( mode == renderWireframe || mode == renderVectorField )
          {
             Vector N = f->normal();
             glNormal3dv( &N[0] );
@@ -449,7 +466,7 @@ namespace DDG
          HalfEdgeCIter he = f->he;
          do
          {
-            if( mode != renderWireframe )
+            if( mode != renderWireframe && mode != renderVectorField ) // Comment back in for triangles in vectorfield
             {
                Vector N = he->vertex->normal();
                glNormal3dv( &N[0] );
@@ -464,6 +481,61 @@ namespace DDG
          glEnd();
       }
    }
+
+   void Viewer :: drawVectorField( void )
+   {
+      glPushAttrib( GL_ALL_ATTRIB_BITS );
+
+      glDisable( GL_LIGHTING );
+      glColor4f( 0., 0., 0., .5 );
+      glEnable( GL_BLEND );
+      glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+
+      glBegin( GL_LINES );
+      for( FaceCIter f  = mesh.faces.begin(); f != mesh.faces.end(); ++f )
+      {
+         Vector face_midpoint = ( f->he->vertex->position + f->he->next->vertex->position + f->he->next->next->vertex->position ) / 3;
+         Vector field_vel = fluid->whitneyInterpolateVelocity( face_midpoint, f->he );
+         field_vel *= 100 * f->area();
+
+         Vector endpoint = face_midpoint + field_vel;
+         glVertex3dv( &face_midpoint[0] );
+         glVertex3dv( &endpoint[0] );
+
+
+      face_midpoint = ( f->he->vertex->position * 0.8 + f->he->next->vertex->position * 0.1 + f->he->next->next->vertex->position * 0.1 );
+      field_vel = fluid->whitneyInterpolateVelocity( face_midpoint, f->he );
+      field_vel *= 100 * f->area();
+
+      endpoint = face_midpoint + field_vel;
+      glVertex3dv( &face_midpoint[0] );
+      glVertex3dv( &endpoint[0] );
+
+      face_midpoint = ( f->he->vertex->position * 0.1 + f->he->next->vertex->position * 0.8 + f->he->next->next->vertex->position * 0.1 );
+      field_vel = fluid->whitneyInterpolateVelocity( face_midpoint, f->he );
+      field_vel *= 100 * f->area();
+
+      endpoint = face_midpoint + field_vel;
+      glVertex3dv( &face_midpoint[0] );
+      glVertex3dv( &endpoint[0] );
+
+      face_midpoint = ( f->he->vertex->position * 0.1 + f->he->next->vertex->position * 0.1 + f->he->next->next->vertex->position * 0.8 );
+      field_vel = fluid->whitneyInterpolateVelocity( face_midpoint, f->he );
+      field_vel *= 100 * f->area();
+
+      endpoint = face_midpoint + field_vel;
+      glVertex3dv( &face_midpoint[0] );
+      glVertex3dv( &endpoint[0] );
+
+
+      }
+
+      
+      glEnd();
+
+      glPopAttrib();
+   }
+
 
    void Viewer :: drawWireframe( void )
    {

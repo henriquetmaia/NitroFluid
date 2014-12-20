@@ -11,30 +11,40 @@
 #define DDG_EDGE_H
 
 #include "Types.h"
-#include <iostream>
+#include "Vector.h"
+#include "HalfEdge.h"
+#include "Vertex.h"
 
 namespace DDG
 {
    class Edge
    {
       public:
-        double getCoef( void ) const { return ref_coef; }
 
-        void setCoef( double newCoef ) { mod_coef = newCoef; }
+        double getCoef( void ) const {
+          return ref_coef; 
+        }
+
+        void setCoef( double newCoef ) { 
+          mod_coef = newCoef;
+        }
 
         void updateRefCoef( void ) { 
-          // std::cout << "before:" << ref_coef << " after:" << mod_coef << std::endl;
-         ref_coef = mod_coef; }
+          ref_coef = mod_coef; 
+        }
  
-        void setID( const int& new_id ) { index = new_id; };
+        void setID( const int& new_id ) { 
         // assigns a new ID to the edge
+          index = new_id; 
+        };
 
-        int getID( void ) const { return index; }
+        int getID( void ) const { 
+          return index; 
+        }
 
         HalfEdgeIter he;
         // points to one of the two halfedges associated with this edge
 
-      private:
         double ref_coef; 
         // Integrated fluid velocity weight associated with flow across this edge
         // READ ONLY Value from the start of the timestep used as reference for computing flow
@@ -43,6 +53,13 @@ namespace DDG
         double mod_coef;
         // Modified velocity
         // WRITE ONLY Modified value for next timestep
+
+        Vector vector() const
+        { // tip - tail
+          return he->flip->vertex->position - he->vertex->position;
+        }
+
+      private:
 
         int index;// = -1;
         // unique ID with reference to a mesh in range 0, ... , NumEdges - 1   
